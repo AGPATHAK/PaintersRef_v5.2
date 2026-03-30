@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+  <meta
+    name="description"
+    content="Prepare painter-friendly reference sheets with value studies, tonal masks, outline sketches, and grid overlays."
+  />
+  <meta name="theme-color" content="#f4f1ea" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>Painter's Reference Lab</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="./icons/icon.svg" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div>
+        <h1>Painter's Reference Lab</h1>
+        <p class="app-subtitle">Phase 7 — Composite Export</p>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <aside class="control-panel">
+        <section class="panel-section">
+          <h2>Reference Image</h2>
+          <label for="imageInput" class="file-label">Choose JPG or PNG</label>
+          <input
+            id="imageInput"
+            type="file"
+            accept="image/png, image/jpeg"
+          />
+          <p class="helper-text">
+            The image is rendered to the working canvas while preserving aspect ratio.
+          </p>
+        </section>
+
+        <section class="panel-section compact-section">
+          <div class="field">
+            <label for="viewModeSelect">View Mode</label>
+            <select id="viewModeSelect">
+              <option value="original">Original</option>
+              <option value="grayscale">Grayscale</option>
+              <option value="notan">3-Value Notan</option>
+              <option value="lightMask">Light Mask</option>
+              <option value="midtoneMask">Midtone Mask</option>
+              <option value="shadowMask">Shadow Mask</option>
+              <option value="outlineSketch">Rough Outline Sketch</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="outlineDetailSelect">Outline Detail</label>
+            <select id="outlineDetailSelect">
+              <option value="low">Low Detail</option>
+              <option value="medium" selected>Medium Detail</option>
+              <option value="high">High Detail</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="panel-section compact-section">
+          <div class="grid-row-top">
+            <h2>Grid</h2>
+            <label class="checkbox-row inline-checkbox">
+              <input id="showGridInput" type="checkbox" checked />
+              <span>Show</span>
+            </label>
+          </div>
+
+          <div class="form-grid simple-grid-controls">
+            <div class="field">
+              <label for="rowsInput">Rows</label>
+              <input id="rowsInput" type="number" min="1" max="50" value="3" />
+            </div>
+
+            <div class="field">
+              <label for="columnsInput">Columns</label>
+              <input id="columnsInput" type="number" min="1" max="50" value="3" />
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-section compact-section">
+          <h2>Export</h2>
+          <div class="export-actions">
+            <button id="exportSheet1Button" type="button">Export Sheet 1</button>
+            <button id="exportSheet2Button" type="button">Export Sheet 2</button>
+          </div>
+          <p class="helper-text">
+            Sheet 1: Original, Grayscale, Notan, Outline (+ grid on outline only).<br />
+            Sheet 2: Original, Light Mask, Midtone Mask, Shadow Mask.
+          </p>
+        </section>
+
+        <section class="panel-section compact-section">
+          <h2>Image Info</h2>
+          <dl class="info-list compact-info-list">
+            <div>
+              <dt>Status</dt>
+              <dd id="statusText">Waiting for image</dd>
+            </div>
+            <div>
+              <dt>Original</dt>
+              <dd id="originalSizeText">—</dd>
+            </div>
+            <div>
+              <dt>Canvas</dt>
+              <dd id="canvasSizeText">—</dd>
+            </div>
+            <div>
+              <dt>Scale</dt>
+              <dd id="scaleText">—</dd>
+            </div>
+            <div>
+              <dt>View</dt>
+              <dd id="viewModeText">Original</dd>
+            </div>
+            <div>
+              <dt>Outline</dt>
+              <dd id="outlineDetailText">Medium Detail</dd>
+            </div>
+          </dl>
+        </section>
+      </aside>
+
+      <section class="canvas-panel">
+        <div class="canvas-stage">
+          <canvas
+            id="mainCanvas"
+            aria-label="Reference image canvas"
+          ></canvas>
+
+          <div id="canvasPlaceholder" class="canvas-placeholder">
+            <div class="placeholder-card">
+              <p>No image loaded yet</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
