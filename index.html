@@ -30,109 +30,164 @@
 
     <main class="app-main">
       <aside class="control-panel">
-        <section class="panel-section">
+        <section class="panel-section compact-section reference-section">
           <h2>Reference Image</h2>
-          <label for="imageInput" class="file-label">Choose JPG or PNG</label>
-          <input
-            id="imageInput"
-            type="file"
-            accept="image/png, image/jpeg"
-          />
+          <div id="referenceUploadBlock">
+            <label for="imageInput" class="file-label">Choose JPG or PNG</label>
+            <input
+              id="imageInput"
+              type="file"
+              accept="image/png, image/jpeg"
+            />
+          </div>
+          <div id="referenceSummary" class="reference-summary is-hidden">
+            <div>
+              <p class="reference-summary-label">Loaded Image</p>
+              <p id="referenceFileName" class="reference-summary-name">None</p>
+            </div>
+            <button id="changeImageButton" type="button" class="secondary-button">Change Image</button>
+          </div>
           <p class="helper-text">
-            The image is rendered to the working canvas while preserving aspect ratio.
+            Images are fitted to the working canvas while preserving aspect ratio.
           </p>
         </section>
 
-        <section class="panel-section compact-section">
-          <h2>Composition</h2>
-          <div class="form-grid simple-grid-controls">
-            <div class="field">
-              <label for="focalRadiusInput">Focus Radius</label>
-              <input
-                id="focalRadiusInput"
-                type="range"
-                min="10"
-                max="35"
-                value="18"
-              />
-              <p id="focalRadiusValue" class="slider-value">18%</p>
+        <section class="panel-section compact-section workflow-stage" data-stage-section="baseline">
+          <button type="button" class="stage-toggle" data-stage-toggle="baseline">
+            <span class="stage-toggle-label">Baseline</span>
+            <span id="baselineStageValue" class="stage-toggle-value">Original</span>
+          </button>
+          <div class="stage-body" data-stage-body="baseline">
+            <div class="view-mode-grid view-mode-grid--single">
+              <button type="button" class="view-mode-button" data-view-mode="original">Original</button>
             </div>
+            <div class="control-cluster">
+              <div class="grid-row-top">
+                <h3>Grid</h3>
+                <label class="checkbox-row inline-checkbox">
+                  <input id="showGridInput" type="checkbox" checked />
+                  <span>Show</span>
+                </label>
+              </div>
 
-            <div class="field">
-              <label for="focalSoftnessInput">Rest Softness</label>
-              <input
-                id="focalSoftnessInput"
-                type="range"
-                min="4"
-                max="24"
-                value="12"
-              />
-              <p id="focalSoftnessValue" class="slider-value">12 px</p>
+              <div class="form-grid simple-grid-controls">
+                <div class="field">
+                  <label for="rowsInput">Rows</label>
+                  <input id="rowsInput" type="number" min="1" max="50" value="3" />
+                </div>
+
+                <div class="field">
+                  <label for="columnsInput">Columns</label>
+                  <input id="columnsInput" type="number" min="1" max="50" value="3" />
+                </div>
+              </div>
             </div>
-          </div>
-          <button id="clearFocalPointButton" type="button">Clear Focal Point</button>
-          <p class="helper-text">
-            In Focal Study view, click the image to place a point of interest and compare it against the original.
-          </p>
-        </section>
-
-        <section class="panel-section compact-section">
-          <div class="field">
-            <label for="viewModeSelect">View Mode</label>
-            <select id="viewModeSelect">
-              <option value="original">Original</option>
-              <option value="focalStudy">Focal Study</option>
-              <option value="grayscale">Grayscale</option>
-              <option value="notan">3-Value Notan</option>
-              <option value="lightMask">Light Mask</option>
-              <option value="midtoneMask">Midtone Mask</option>
-              <option value="shadowMask">Shadow Mask</option>
-              <option value="outlineSketch">Rough Outline Sketch</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label for="outlineDetailSelect">Outline Detail</label>
-            <select id="outlineDetailSelect">
-              <option value="low">Low Detail</option>
-              <option value="medium" selected>Medium Detail</option>
-              <option value="high">High Detail</option>
-            </select>
+            <p class="helper-text">
+              Use the original reference and optional grid as a neutral starting point.
+            </p>
           </div>
         </section>
 
-        <section class="panel-section compact-section">
-          <div class="grid-row-top">
-            <h2>Grid</h2>
-            <label class="checkbox-row inline-checkbox">
-              <input id="showGridInput" type="checkbox" checked />
-              <span>Show</span>
-            </label>
-          </div>
-
-          <div class="form-grid simple-grid-controls">
-            <div class="field">
-              <label for="rowsInput">Rows</label>
-              <input id="rowsInput" type="number" min="1" max="50" value="3" />
+        <section class="panel-section compact-section workflow-stage" data-stage-section="composition">
+          <button type="button" class="stage-toggle" data-stage-toggle="composition">
+            <span class="stage-toggle-label">Composition</span>
+            <span id="compositionStageValue" class="stage-toggle-value">Focal Study</span>
+          </button>
+          <div class="stage-body" data-stage-body="composition">
+            <div class="view-mode-grid view-mode-grid--single">
+              <button type="button" class="view-mode-button" data-view-mode="focalStudy">Focal Study</button>
             </div>
+            <div class="mode-detail">
+              <div class="form-grid simple-grid-controls">
+                <div class="field">
+                  <label for="focalRadiusInput">Focus Radius</label>
+                  <input
+                    id="focalRadiusInput"
+                    type="range"
+                    min="10"
+                    max="35"
+                    value="18"
+                  />
+                  <p id="focalRadiusValue" class="slider-value">18%</p>
+                </div>
 
-            <div class="field">
-              <label for="columnsInput">Columns</label>
-              <input id="columnsInput" type="number" min="1" max="50" value="3" />
+                <div class="field">
+                  <label for="focalSoftnessInput">Rest Softness</label>
+                  <input
+                    id="focalSoftnessInput"
+                    type="range"
+                    min="4"
+                    max="24"
+                    value="12"
+                  />
+                  <p id="focalSoftnessValue" class="slider-value">12 px</p>
+                </div>
+              </div>
+              <button id="clearFocalPointButton" type="button">Clear Focal Point</button>
+              <p class="helper-text">
+                Click the image to place a point of interest. The app switches to Focal Study automatically.
+              </p>
             </div>
           </div>
         </section>
 
-        <section class="panel-section compact-section">
-          <h2>Export</h2>
-          <div class="export-actions">
-            <button id="exportSheet1Button" type="button">Export Sheet 1</button>
-            <button id="exportSheet2Button" type="button">Export Sheet 2</button>
+        <section class="panel-section compact-section workflow-stage" data-stage-section="drawing">
+          <button type="button" class="stage-toggle" data-stage-toggle="drawing">
+            <span class="stage-toggle-label">Drawing</span>
+            <span id="drawingStageValue" class="stage-toggle-value">Rough Outline Sketch</span>
+          </button>
+          <div class="stage-body" data-stage-body="drawing">
+            <div class="view-mode-grid view-mode-grid--single">
+              <button type="button" class="view-mode-button" data-view-mode="outlineSketch">Rough Outline Sketch</button>
+            </div>
+            <div class="field">
+              <label for="outlineDetailSelect">Outline Detail</label>
+              <select id="outlineDetailSelect">
+                <option value="low">Low Detail</option>
+                <option value="medium" selected>Medium Detail</option>
+                <option value="high">High Detail</option>
+              </select>
+            </div>
+            <p class="helper-text">
+              Use Rough Outline Sketch to support block-in and proportion checks.
+            </p>
           </div>
-          <p class="helper-text">
-            Sheet 1: Original, Grayscale, Notan, Outline (+ grid on outline only).<br />
-            Sheet 2: Original, Light Mask, Midtone Mask, Shadow Mask.
-          </p>
+        </section>
+
+        <section class="panel-section compact-section workflow-stage" data-stage-section="painting">
+          <button type="button" class="stage-toggle" data-stage-toggle="painting">
+            <span class="stage-toggle-label">Painting</span>
+            <span id="paintingStageValue" class="stage-toggle-value">Grayscale</span>
+          </button>
+          <div class="stage-body" data-stage-body="painting">
+            <div class="view-mode-grid">
+              <button type="button" class="view-mode-button" data-view-mode="grayscale">Grayscale</button>
+              <button type="button" class="view-mode-button" data-view-mode="notan">3-Value Notan</button>
+              <button type="button" class="view-mode-button" data-view-mode="lightMask">Light Mask</button>
+              <button type="button" class="view-mode-button" data-view-mode="midtoneMask">Midtone Mask</button>
+              <button type="button" class="view-mode-button" data-view-mode="shadowMask">Shadow Mask</button>
+            </div>
+            <p class="helper-text">
+              Use these views to simplify value structure while painting.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel-section compact-section workflow-stage" data-stage-section="general">
+          <button type="button" class="stage-toggle" data-stage-toggle="general">
+            <span class="stage-toggle-label">General</span>
+            <span id="generalStageValue" class="stage-toggle-value">Exports</span>
+          </button>
+          <div class="stage-body" data-stage-body="general">
+            <div class="export-actions">
+              <button id="exportSheet1Button" type="button">Export Sheet 1</button>
+              <button id="exportSheet2Button" type="button">Export Sheet 2</button>
+            </div>
+            <p class="helper-text">
+              Sheet 1: Original, Grayscale, Notan, Outline.<br />
+              Sheet 2: Original, Light, Midtone, Shadow.
+            </p>
+          </div>
         </section>
 
         <section class="panel-section compact-section">

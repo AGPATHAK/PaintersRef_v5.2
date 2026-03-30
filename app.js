@@ -423,7 +423,8 @@ function drawPanel(ctx, panelCanvas, x, y, width, height, label, options = {}) {
     showGrid = false,
     gridOptions = null,
     labelHeight = 38,
-    overlayDrawer = null
+    overlayDrawer = null,
+    sublabel = ""
   } = options;
 
   ctx.save();
@@ -462,10 +463,19 @@ function drawPanel(ctx, panelCanvas, x, y, width, height, label, options = {}) {
   ctx.strokeRect(x, y, width, imageAreaHeight);
 
   ctx.fillStyle = "#2f2a24";
-  ctx.font = "600 18px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  ctx.font = "600 18px 'Avenir Next', Avenir, Aptos, 'Helvetica Neue', Helvetica, Arial, sans-serif";
   ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(label, x + width / 2, y + imageAreaHeight + (labelHeight / 2));
+  ctx.textBaseline = sublabel ? "alphabetic" : "middle";
+  if (sublabel) {
+    const labelBaseY = y + imageAreaHeight + 24;
+    ctx.fillText(label, x + width / 2, labelBaseY);
+
+    ctx.fillStyle = "#6f665c";
+    ctx.font = "500 13px 'Avenir Next', Avenir, Aptos, 'Helvetica Neue', Helvetica, Arial, sans-serif";
+    ctx.fillText(sublabel, x + width / 2, labelBaseY + 19);
+  } else {
+    ctx.fillText(label, x + width / 2, y + imageAreaHeight + (labelHeight / 2));
+  }
 
   ctx.restore();
 
@@ -504,7 +514,7 @@ function createCompositeSheet(panels, filename, options = {}) {
   ctx.fillRect(0, 0, sheetCanvas.width, sheetCanvas.height);
 
   ctx.fillStyle = "#2f2a24";
-  ctx.font = "700 28px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  ctx.font = "700 28px 'Avenir Next', Avenir, Aptos, 'Helvetica Neue', Helvetica, Arial, sans-serif";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillText(title, margin, Math.round(topTitleHeight / 2));
@@ -649,6 +659,10 @@ class PaintersReferenceApp {
   constructor() {
     this.dom = {
       imageInput: document.getElementById("imageInput"),
+      referenceUploadBlock: document.getElementById("referenceUploadBlock"),
+      referenceSummary: document.getElementById("referenceSummary"),
+      referenceFileName: document.getElementById("referenceFileName"),
+      changeImageButton: document.getElementById("changeImageButton"),
       mainCanvas: document.getElementById("mainCanvas"),
       canvasPlaceholder: document.getElementById("canvasPlaceholder"),
       statusText: document.getElementById("statusText"),
@@ -662,11 +676,19 @@ class PaintersReferenceApp {
       focalSoftnessInput: document.getElementById("focalSoftnessInput"),
       focalSoftnessValue: document.getElementById("focalSoftnessValue"),
       clearFocalPointButton: document.getElementById("clearFocalPointButton"),
+      viewModeButtons: Array.from(document.querySelectorAll("[data-view-mode]")),
+      stageSections: Array.from(document.querySelectorAll("[data-stage-section]")),
+      stageToggleButtons: Array.from(document.querySelectorAll("[data-stage-toggle]")),
+      stageBodyElements: Array.from(document.querySelectorAll("[data-stage-body]")),
+      baselineStageValue: document.getElementById("baselineStageValue"),
+      compositionStageValue: document.getElementById("compositionStageValue"),
+      drawingStageValue: document.getElementById("drawingStageValue"),
+      paintingStageValue: document.getElementById("paintingStageValue"),
+      generalStageValue: document.getElementById("generalStageValue"),
 
       showGridInput: document.getElementById("showGridInput"),
       rowsInput: document.getElementById("rowsInput"),
       columnsInput: document.getElementById("columnsInput"),
-      viewModeSelect: document.getElementById("viewModeSelect"),
       outlineDetailSelect: document.getElementById("outlineDetailSelect"),
 
       exportSheet1Button: document.getElementById("exportSheet1Button"),
@@ -679,11 +701,19 @@ class PaintersReferenceApp {
       originalImage: null,
       originalWidth: 0,
       originalHeight: 0,
+      loadedFileName: "",
       workingCanvasWidth: 0,
       workingCanvasHeight: 0,
       workingScale: 1,
       viewMode: "original",
+      activeStage: "baseline",
       outlineDetail: "medium",
+      stageSelections: {
+        baseline: "original",
+        composition: "focalStudy",
+        drawing: "outlineSketch",
+        painting: "grayscale"
+      },
       focalStudy: {
         point: null,
         radiusPercent: 18,
@@ -716,6 +746,35 @@ class PaintersReferenceApp {
     this.bindEvents();
     this.initializeCanvas();
     this.syncControls();
+  }
+
+  getStageForViewMode(viewMode) {
+    const stageByViewMode = {
+      original: "baseline",
+      focalStudy: "composition",
+      outlineSketch: "drawing",
+      grayscale: "painting",
+      notan: "painting",
+      lightMask: "painting",
+      midtoneMask: "painting",
+      shadowMask: "painting"
+    };
+
+    return stageByViewMode[viewMode] || "baseline";
+  }
+
+  setViewMode(nextViewMode) {
+    if (!nextViewMode) {
+      return;
+    }
+
+    this.state.viewMode = nextViewMode;
+    this.state.activeStage = this.getStageForViewMode(nextViewMode);
+    this.state.stageSelections[this.state.activeStage] = nextViewMode;
+    this.updateViewModeLabel();
+    this.updateViewModeButtons();
+    this.updateStagePanels();
+    this.renderScene();
   }
 
   bindEvents() {
@@ -764,10 +823,33 @@ class PaintersReferenceApp {
       this.renderScene();
     });
 
-    this.dom.viewModeSelect.addEventListener("change", () => {
-      this.state.viewMode = this.dom.viewModeSelect.value;
-      this.updateViewModeLabel();
-      this.renderScene();
+    this.dom.viewModeButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const nextViewMode = button.dataset.viewMode;
+        if (!nextViewMode || nextViewMode === this.state.viewMode) {
+          return;
+        }
+
+        this.setViewMode(nextViewMode);
+      });
+    });
+
+    this.dom.stageToggleButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const stage = button.dataset.stageToggle;
+        if (!stage) {
+          return;
+        }
+
+        if (stage === "general") {
+          this.state.activeStage = "general";
+          this.updateStagePanels();
+          return;
+        }
+
+        const nextViewMode = this.state.stageSelections[stage] || "original";
+        this.setViewMode(nextViewMode);
+      });
     });
 
     this.dom.outlineDetailSelect.addEventListener("change", () => {
@@ -791,6 +873,10 @@ class PaintersReferenceApp {
       this.renderScene();
     });
 
+    this.dom.changeImageButton.addEventListener("click", () => {
+      this.dom.imageInput.click();
+    });
+
     this.dom.mainCanvas.addEventListener("click", (event) => {
       this.handleMainCanvasClick(event);
     });
@@ -808,11 +894,13 @@ class PaintersReferenceApp {
     this.dom.showGridInput.checked = this.state.grid.show;
     this.dom.rowsInput.value = this.state.grid.rows;
     this.dom.columnsInput.value = this.state.grid.columns;
-    this.dom.viewModeSelect.value = this.state.viewMode;
     this.dom.outlineDetailSelect.value = this.state.outlineDetail;
     this.updateViewModeLabel();
+    this.updateViewModeButtons();
+    this.updateStagePanels();
     this.updateOutlineDetailLabel();
     this.updateFocalStudyControls();
+    this.updateReferenceSection();
   }
 
   updateViewModeLabel() {
@@ -835,12 +923,66 @@ class PaintersReferenceApp {
       getOutlinePresetSettings(this.state.outlineDetail).label;
   }
 
+  updateViewModeButtons() {
+    this.dom.viewModeButtons.forEach((button) => {
+      const isActive = button.dataset.viewMode === this.state.viewMode;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+  }
+
+  updateStagePanels() {
+    this.dom.stageSections.forEach((section) => {
+      const isActive = section.dataset.stageSection === this.state.activeStage;
+      section.classList.toggle("is-active", isActive);
+    });
+
+    this.dom.stageBodyElements.forEach((body) => {
+      const isActive = body.dataset.stageBody === this.state.activeStage;
+      body.classList.toggle("is-hidden", !isActive);
+    });
+
+    this.dom.stageToggleButtons.forEach((button) => {
+      const isActive = button.dataset.stageToggle === this.state.activeStage;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+
+    const labels = {
+      original: "Original",
+      focalStudy: "Focal Study",
+      outlineSketch: "Rough Outline",
+      grayscale: "Grayscale",
+      notan: "3-Value Notan",
+      lightMask: "Light Mask",
+      midtoneMask: "Midtone Mask",
+      shadowMask: "Shadow Mask"
+    };
+
+    this.dom.baselineStageValue.textContent =
+      labels[this.state.stageSelections.baseline] || "Original";
+    this.dom.compositionStageValue.textContent =
+      labels[this.state.stageSelections.composition] || "Focal Study";
+    this.dom.drawingStageValue.textContent =
+      labels[this.state.stageSelections.drawing] || "Rough Outline";
+    this.dom.paintingStageValue.textContent =
+      labels[this.state.stageSelections.painting] || "Grayscale";
+    this.dom.generalStageValue.textContent = "Exports";
+  }
+
   updateFocalStudyControls() {
     this.dom.focalRadiusInput.value = this.state.focalStudy.radiusPercent;
     this.dom.focalRadiusValue.textContent = `${this.state.focalStudy.radiusPercent}%`;
     this.dom.focalSoftnessInput.value = this.state.focalStudy.blurAmount;
     this.dom.focalSoftnessValue.textContent = `${this.state.focalStudy.blurAmount} px`;
     this.dom.clearFocalPointButton.disabled = !this.state.focalStudy.point;
+  }
+
+  updateReferenceSection() {
+    const hasLoadedImage = Boolean(this.state.loadedFileName);
+    this.dom.referenceUploadBlock.classList.toggle("is-hidden", hasLoadedImage);
+    this.dom.referenceSummary.classList.toggle("is-hidden", !hasLoadedImage);
+    this.dom.referenceFileName.textContent = this.state.loadedFileName || "None";
   }
 
   getSafeInteger(value, fallback, min, max) {
@@ -864,12 +1006,14 @@ class PaintersReferenceApp {
       this.state.originalImage = image;
       this.state.originalWidth = image.naturalWidth;
       this.state.originalHeight = image.naturalHeight;
+      this.state.loadedFileName = file.name;
       this.state.focalStudy.point = null;
 
       this.prepareWorkingCanvases();
       this.renderScene();
 
       this.dom.canvasPlaceholder.classList.add("is-hidden");
+      this.updateReferenceSection();
       this.updateStatus("Image loaded");
     } catch (error) {
       console.error("Image loading failed:", error);
@@ -949,11 +1093,7 @@ class PaintersReferenceApp {
   }
 
   handleMainCanvasClick(event) {
-    if (this.state.viewMode !== "focalStudy" || !this.state.processed.originalCanvas) {
-      return;
-    }
-
-    if (!this.focalStudyLayout || !this.focalStudyLayout.sourceImageRect) {
+    if (!this.state.processed.originalCanvas) {
       return;
     }
 
@@ -966,7 +1106,22 @@ class PaintersReferenceApp {
     const scaleY = this.dom.mainCanvas.height / rect.height;
     const canvasX = (event.clientX - rect.left) * scaleX;
     const canvasY = (event.clientY - rect.top) * scaleY;
-    const imageRect = this.focalStudyLayout.sourceImageRect;
+
+    let imageRect = null;
+
+    if (this.state.viewMode === "focalStudy") {
+      if (!this.focalStudyLayout || !this.focalStudyLayout.sourceImageRect) {
+        return;
+      }
+      imageRect = this.focalStudyLayout.sourceImageRect;
+    } else {
+      imageRect = {
+        x: 0,
+        y: 0,
+        width: this.dom.mainCanvas.width,
+        height: this.dom.mainCanvas.height
+      };
+    }
 
     const isInsideImage =
       canvasX >= imageRect.x &&
@@ -988,6 +1143,14 @@ class PaintersReferenceApp {
       y: clamp(pointY, 0, this.state.processed.originalCanvas.height)
     };
 
+    if (this.state.viewMode !== "focalStudy") {
+      this.state.stageSelections.composition = "focalStudy";
+      this.setViewMode("focalStudy");
+      this.updateFocalStudyControls();
+      this.updateStatus("Focal point selected");
+      return;
+    }
+
     this.updateFocalStudyControls();
     this.updateStatus("Focal point selected");
     this.renderScene();
@@ -1004,7 +1167,7 @@ class PaintersReferenceApp {
       blurAmount: this.state.focalStudy.blurAmount
     });
 
-    const labelHeight = 40;
+    const labelHeight = 62;
     const margin = 24;
     const gutter = 24;
     const panelImageSize = computeContainSize(
@@ -1031,6 +1194,7 @@ class PaintersReferenceApp {
       "Original",
       {
         labelHeight,
+        sublabel: "Click image to place or move focal point",
         overlayDrawer: (ctx, imageRect) => {
           drawFocalMarker(
             ctx,
@@ -1071,17 +1235,6 @@ class PaintersReferenceApp {
     };
 
     if (!this.state.focalStudy.point) {
-      this.ctx.save();
-      this.ctx.fillStyle = "rgba(47, 42, 36, 0.75)";
-      this.ctx.font = "600 20px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-      this.ctx.textAlign = "center";
-      this.ctx.textBaseline = "middle";
-      this.ctx.fillText(
-        "Click the original image to place a focal point.",
-        studyPanelRect.x + (studyPanelRect.width / 2),
-        studyPanelRect.y + (studyPanelRect.height / 2)
-      );
-      this.ctx.restore();
       this.updateStatus("Click the original image to set a focal point");
     } else {
       this.updateStatus("Focal study ready");
