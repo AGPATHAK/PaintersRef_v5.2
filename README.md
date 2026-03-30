@@ -59,9 +59,9 @@ This app is meant to reduce setup time for traditional painting studies. Instead
 
 Because everything runs in the browser, your image stays local to your device while you work.
 
-## Run Locally
+## Local Development (Optional)
 
-Because the app registers a service worker, serve it from a local web server instead of opening `index.html` directly.
+If you want to run the app from the repository, serve it from a local web server instead of opening `index.html` directly. This is especially helpful because the app registers a service worker.
 
 Example:
 
