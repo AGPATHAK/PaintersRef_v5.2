@@ -95,6 +95,7 @@ body {
 
 input[type="file"],
 input[type="number"],
+input[type="range"],
 select {
   display: block;
   width: 100%;
@@ -104,6 +105,10 @@ select {
   background: #fff;
   color: var(--text);
   font: inherit;
+}
+
+input[type="range"] {
+  padding: 0;
 }
 
 .helper-text {
@@ -186,9 +191,26 @@ button:hover {
   border-color: #cbbfae;
 }
 
+button:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+button:disabled:hover {
+  background: #ffffff;
+  border-color: var(--border);
+}
+
 .export-actions {
   display: grid;
   gap: 10px;
+}
+
+.slider-value {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-weight: 600;
 }
 
 .canvas-panel {

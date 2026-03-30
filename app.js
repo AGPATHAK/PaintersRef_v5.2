@@ -422,7 +422,8 @@ function drawPanel(ctx, panelCanvas, x, y, width, height, label, options = {}) {
   const {
     showGrid = false,
     gridOptions = null,
-    labelHeight = 38
+    labelHeight = 38,
+    overlayDrawer = null
   } = options;
 
   ctx.save();
@@ -447,6 +448,15 @@ function drawPanel(ctx, panelCanvas, x, y, width, height, label, options = {}) {
     ctx.drawImage(overlayCanvas, drawX, drawY);
   }
 
+  if (typeof overlayDrawer === "function") {
+    overlayDrawer(ctx, {
+      x: drawX,
+      y: drawY,
+      width: fitted.width,
+      height: fitted.height
+    });
+  }
+
   ctx.strokeStyle = "#d9d2c4";
   ctx.lineWidth = 1;
   ctx.strokeRect(x, y, width, imageAreaHeight);
@@ -458,6 +468,13 @@ function drawPanel(ctx, panelCanvas, x, y, width, height, label, options = {}) {
   ctx.fillText(label, x + width / 2, y + imageAreaHeight + (labelHeight / 2));
 
   ctx.restore();
+
+  return {
+    x: drawX,
+    y: drawY,
+    width: fitted.width,
+    height: fitted.height
+  };
 }
 
 function createCompositeSheet(panels, filename, options = {}) {
@@ -509,6 +526,122 @@ function createCompositeSheet(panels, filename, options = {}) {
 }
 
 /* ---------------------------------
+   Focal study utilities
+--------------------------------- */
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function createBlurredCanvas(sourceCanvas, blurAmount) {
+  const outputCanvas = createOffscreenCanvas(sourceCanvas.width, sourceCanvas.height);
+  const outputCtx = outputCanvas.getContext("2d");
+
+  outputCtx.filter = blurAmount > 0 ? `blur(${blurAmount}px)` : "none";
+  outputCtx.drawImage(sourceCanvas, 0, 0);
+  outputCtx.filter = "none";
+
+  return outputCanvas;
+}
+
+function createFocalStudyCanvas(sourceCanvas, focalPoint, options = {}) {
+  if (!sourceCanvas) {
+    return null;
+  }
+
+  if (!focalPoint) {
+    return sourceCanvas;
+  }
+
+  const {
+    radiusPercent = 18,
+    blurAmount = 12,
+    dimOpacity = 0.14
+  } = options;
+
+  const outputCanvas = createOffscreenCanvas(sourceCanvas.width, sourceCanvas.height);
+  const outputCtx = outputCanvas.getContext("2d");
+  const blurredCanvas = createBlurredCanvas(sourceCanvas, blurAmount);
+
+  outputCtx.drawImage(blurredCanvas, 0, 0);
+
+  if (dimOpacity > 0) {
+    outputCtx.save();
+    outputCtx.fillStyle = `rgba(244, 241, 234, ${dimOpacity})`;
+    outputCtx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+    outputCtx.restore();
+  }
+
+  const focusOverlayCanvas = createOffscreenCanvas(sourceCanvas.width, sourceCanvas.height);
+  const focusOverlayCtx = focusOverlayCanvas.getContext("2d");
+  focusOverlayCtx.drawImage(sourceCanvas, 0, 0);
+
+  const focusRadius = Math.max(
+    60,
+    Math.round(Math.min(sourceCanvas.width, sourceCanvas.height) * (radiusPercent / 100))
+  );
+  const innerRadius = Math.max(24, Math.round(focusRadius * 0.55));
+  const outerRadius = Math.max(innerRadius + 24, Math.round(focusRadius * 1.45));
+
+  const gradient = focusOverlayCtx.createRadialGradient(
+    focalPoint.x,
+    focalPoint.y,
+    innerRadius,
+    focalPoint.x,
+    focalPoint.y,
+    outerRadius
+  );
+
+  gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
+  gradient.addColorStop(0.65, "rgba(0, 0, 0, 0.94)");
+  gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+  focusOverlayCtx.globalCompositeOperation = "destination-in";
+  focusOverlayCtx.fillStyle = gradient;
+  focusOverlayCtx.fillRect(0, 0, focusOverlayCanvas.width, focusOverlayCanvas.height);
+
+  outputCtx.drawImage(focusOverlayCanvas, 0, 0);
+
+  return outputCanvas;
+}
+
+function drawFocalMarker(ctx, imageRect, sourceCanvas, focalPoint, radiusPercent) {
+  if (!focalPoint || !sourceCanvas || !imageRect) {
+    return;
+  }
+
+  const scale = Math.min(
+    imageRect.width / sourceCanvas.width,
+    imageRect.height / sourceCanvas.height
+  );
+  const centerX = imageRect.x + (focalPoint.x * scale);
+  const centerY = imageRect.y + (focalPoint.y * scale);
+  const sourceRadius = Math.min(sourceCanvas.width, sourceCanvas.height) * (radiusPercent / 100);
+  const displayRadius = Math.max(14, sourceRadius * scale);
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(203, 112, 55, 0.95)";
+  ctx.fillStyle = "rgba(203, 112, 55, 0.95)";
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, displayRadius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, 4.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(centerX - 10, centerY);
+  ctx.lineTo(centerX + 10, centerY);
+  ctx.moveTo(centerX, centerY - 10);
+  ctx.lineTo(centerX, centerY + 10);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* ---------------------------------
    App controller
 --------------------------------- */
 
@@ -524,6 +657,11 @@ class PaintersReferenceApp {
       scaleText: document.getElementById("scaleText"),
       viewModeText: document.getElementById("viewModeText"),
       outlineDetailText: document.getElementById("outlineDetailText"),
+      focalRadiusInput: document.getElementById("focalRadiusInput"),
+      focalRadiusValue: document.getElementById("focalRadiusValue"),
+      focalSoftnessInput: document.getElementById("focalSoftnessInput"),
+      focalSoftnessValue: document.getElementById("focalSoftnessValue"),
+      clearFocalPointButton: document.getElementById("clearFocalPointButton"),
 
       showGridInput: document.getElementById("showGridInput"),
       rowsInput: document.getElementById("rowsInput"),
@@ -546,6 +684,11 @@ class PaintersReferenceApp {
       workingScale: 1,
       viewMode: "original",
       outlineDetail: "medium",
+      focalStudy: {
+        point: null,
+        radiusPercent: 18,
+        blurAmount: 12
+      },
       processed: {
         originalCanvas: null,
         grayscaleCanvas: null,
@@ -568,6 +711,7 @@ class PaintersReferenceApp {
     };
 
     this.maxCanvasDimension = 1600;
+    this.focalStudyLayout = null;
 
     this.bindEvents();
     this.initializeCanvas();
@@ -598,6 +742,28 @@ class PaintersReferenceApp {
       this.renderScene();
     });
 
+    this.dom.focalRadiusInput.addEventListener("input", () => {
+      this.state.focalStudy.radiusPercent = this.getSafeInteger(
+        this.dom.focalRadiusInput.value,
+        18,
+        10,
+        35
+      );
+      this.updateFocalStudyControls();
+      this.renderScene();
+    });
+
+    this.dom.focalSoftnessInput.addEventListener("input", () => {
+      this.state.focalStudy.blurAmount = this.getSafeInteger(
+        this.dom.focalSoftnessInput.value,
+        12,
+        4,
+        24
+      );
+      this.updateFocalStudyControls();
+      this.renderScene();
+    });
+
     this.dom.viewModeSelect.addEventListener("change", () => {
       this.state.viewMode = this.dom.viewModeSelect.value;
       this.updateViewModeLabel();
@@ -617,6 +783,17 @@ class PaintersReferenceApp {
     this.dom.exportSheet2Button.addEventListener("click", () => {
       this.exportSheet2();
     });
+
+    this.dom.clearFocalPointButton.addEventListener("click", () => {
+      this.state.focalStudy.point = null;
+      this.updateFocalStudyControls();
+      this.updateStatus("Focal point cleared");
+      this.renderScene();
+    });
+
+    this.dom.mainCanvas.addEventListener("click", (event) => {
+      this.handleMainCanvasClick(event);
+    });
   }
 
   initializeCanvas() {
@@ -635,11 +812,13 @@ class PaintersReferenceApp {
     this.dom.outlineDetailSelect.value = this.state.outlineDetail;
     this.updateViewModeLabel();
     this.updateOutlineDetailLabel();
+    this.updateFocalStudyControls();
   }
 
   updateViewModeLabel() {
     const labels = {
       original: "Original",
+      focalStudy: "Focal Study",
       grayscale: "Grayscale",
       notan: "3-Value Notan",
       lightMask: "Light Mask",
@@ -654,6 +833,14 @@ class PaintersReferenceApp {
   updateOutlineDetailLabel() {
     this.dom.outlineDetailText.textContent =
       getOutlinePresetSettings(this.state.outlineDetail).label;
+  }
+
+  updateFocalStudyControls() {
+    this.dom.focalRadiusInput.value = this.state.focalStudy.radiusPercent;
+    this.dom.focalRadiusValue.textContent = `${this.state.focalStudy.radiusPercent}%`;
+    this.dom.focalSoftnessInput.value = this.state.focalStudy.blurAmount;
+    this.dom.focalSoftnessValue.textContent = `${this.state.focalStudy.blurAmount} px`;
+    this.dom.clearFocalPointButton.disabled = !this.state.focalStudy.point;
   }
 
   getSafeInteger(value, fallback, min, max) {
@@ -677,6 +864,7 @@ class PaintersReferenceApp {
       this.state.originalImage = image;
       this.state.originalWidth = image.naturalWidth;
       this.state.originalHeight = image.naturalHeight;
+      this.state.focalStudy.point = null;
 
       this.prepareWorkingCanvases();
       this.renderScene();
@@ -760,7 +948,158 @@ class PaintersReferenceApp {
     return map[this.state.viewMode] || this.state.processed.originalCanvas;
   }
 
+  handleMainCanvasClick(event) {
+    if (this.state.viewMode !== "focalStudy" || !this.state.processed.originalCanvas) {
+      return;
+    }
+
+    if (!this.focalStudyLayout || !this.focalStudyLayout.sourceImageRect) {
+      return;
+    }
+
+    const rect = this.dom.mainCanvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      return;
+    }
+
+    const scaleX = this.dom.mainCanvas.width / rect.width;
+    const scaleY = this.dom.mainCanvas.height / rect.height;
+    const canvasX = (event.clientX - rect.left) * scaleX;
+    const canvasY = (event.clientY - rect.top) * scaleY;
+    const imageRect = this.focalStudyLayout.sourceImageRect;
+
+    const isInsideImage =
+      canvasX >= imageRect.x &&
+      canvasX <= imageRect.x + imageRect.width &&
+      canvasY >= imageRect.y &&
+      canvasY <= imageRect.y + imageRect.height;
+
+    if (!isInsideImage) {
+      return;
+    }
+
+    const pointX =
+      ((canvasX - imageRect.x) / imageRect.width) * this.state.processed.originalCanvas.width;
+    const pointY =
+      ((canvasY - imageRect.y) / imageRect.height) * this.state.processed.originalCanvas.height;
+
+    this.state.focalStudy.point = {
+      x: clamp(pointX, 0, this.state.processed.originalCanvas.width),
+      y: clamp(pointY, 0, this.state.processed.originalCanvas.height)
+    };
+
+    this.updateFocalStudyControls();
+    this.updateStatus("Focal point selected");
+    this.renderScene();
+  }
+
+  renderFocalStudyScene() {
+    const originalCanvas = this.state.processed.originalCanvas;
+    if (!originalCanvas) {
+      return;
+    }
+
+    const studyCanvas = createFocalStudyCanvas(originalCanvas, this.state.focalStudy.point, {
+      radiusPercent: this.state.focalStudy.radiusPercent,
+      blurAmount: this.state.focalStudy.blurAmount
+    });
+
+    const labelHeight = 40;
+    const margin = 24;
+    const gutter = 24;
+    const panelImageSize = computeContainSize(
+      originalCanvas.width,
+      originalCanvas.height,
+      620,
+      620
+    );
+    const panelWidth = panelImageSize.width;
+    const panelHeight = panelImageSize.height + labelHeight;
+    const canvasWidth = (margin * 2) + (panelWidth * 2) + gutter;
+    const canvasHeight = (margin * 2) + panelHeight;
+
+    setCanvasSize(this.dom.mainCanvas, canvasWidth, canvasHeight);
+    clearCanvas(this.ctx, this.dom.mainCanvas);
+
+    const sourcePanelRect = drawPanel(
+      this.ctx,
+      originalCanvas,
+      margin,
+      margin,
+      panelWidth,
+      panelHeight,
+      "Original",
+      {
+        labelHeight,
+        overlayDrawer: (ctx, imageRect) => {
+          drawFocalMarker(
+            ctx,
+            imageRect,
+            originalCanvas,
+            this.state.focalStudy.point,
+            this.state.focalStudy.radiusPercent
+          );
+        }
+      }
+    );
+
+    const studyPanelRect = drawPanel(
+      this.ctx,
+      studyCanvas,
+      margin + panelWidth + gutter,
+      margin,
+      panelWidth,
+      panelHeight,
+      "Focal Study",
+      {
+        labelHeight,
+        overlayDrawer: (ctx, imageRect) => {
+          drawFocalMarker(
+            ctx,
+            imageRect,
+            originalCanvas,
+            this.state.focalStudy.point,
+            this.state.focalStudy.radiusPercent
+          );
+        }
+      }
+    );
+
+    this.focalStudyLayout = {
+      sourceImageRect: sourcePanelRect,
+      studyImageRect: studyPanelRect
+    };
+
+    if (!this.state.focalStudy.point) {
+      this.ctx.save();
+      this.ctx.fillStyle = "rgba(47, 42, 36, 0.75)";
+      this.ctx.font = "600 20px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      this.ctx.fillText(
+        "Click the original image to place a focal point.",
+        studyPanelRect.x + (studyPanelRect.width / 2),
+        studyPanelRect.y + (studyPanelRect.height / 2)
+      );
+      this.ctx.restore();
+      this.updateStatus("Click the original image to set a focal point");
+    } else {
+      this.updateStatus("Focal study ready");
+    }
+
+    this.updateInfo();
+    this.updateViewModeLabel();
+    this.updateOutlineDetailLabel();
+    this.updateFocalStudyControls();
+  }
+
   renderScene() {
+    if (this.state.viewMode === "focalStudy") {
+      this.renderFocalStudyScene();
+      return;
+    }
+
+    this.focalStudyLayout = null;
     const baseCanvas = this.getActiveBaseCanvas();
     if (!baseCanvas) return;
 
