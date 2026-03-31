@@ -137,8 +137,10 @@
             <span id="drawingStageValue" class="stage-toggle-value">Outline (Medium)</span>
           </button>
           <div class="stage-body" data-stage-body="drawing">
-            <div class="view-mode-grid view-mode-grid--single">
-              <button type="button" class="view-mode-button" data-view-mode="outlineSketch">Rough Outline Sketch</button>
+            <div class="view-mode-grid">
+              <button type="button" class="view-mode-button" data-view-mode="outlineSketch">Outline Sketch</button>
+              <button type="button" class="view-mode-button" data-view-mode="squint">Squint</button>
+              <button type="button" class="view-mode-button" data-view-mode="mirror">Mirror Check</button>
             </div>
             <div id="outlineControlsSection" class="mode-detail">
               <div class="detail-header-row">
@@ -191,8 +193,34 @@
                 Standard anchors: Low `30/2`, Medium `60/1`, High `90/0`.
               </p>
             </div>
+            <div id="squintControlsSection" class="mode-detail is-hidden">
+              <div class="detail-header-row">
+                <h3>Squint Controls</h3>
+                <span class="detail-status-label">From Current Outline</span>
+              </div>
+              <div class="field">
+                <label for="squintBlurInput">Squint Softness</label>
+                <input
+                  id="squintBlurInput"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value="35"
+                  list="squintBlurMarkers"
+                />
+                <datalist id="squintBlurMarkers">
+                  <option value="20" label="Gentle"></option>
+                  <option value="35" label="Standard"></option>
+                  <option value="65" label="Soft"></option>
+                </datalist>
+                <p id="squintBlurValue" class="slider-value">35%</p>
+              </div>
+              <p class="helper-text">
+                Softens the current outline so larger directional masses read first.
+              </p>
+            </div>
             <p class="helper-text">
-              Use Rough Outline Sketch to support block-in and proportion checks.
+              Use Outline, Squint, and Mirror Check to support block-in and proportion checks.
             </p>
           </div>
         </section>

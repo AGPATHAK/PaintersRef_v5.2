@@ -393,6 +393,46 @@ function createOutlineSketchCanvasFromGrayscaleCanvas(grayscaleCanvas, outlineOp
   return outputCanvas;
 }
 
+function createMirroredCanvasFromCanvas(sourceCanvas) {
+  const outputCanvas = createOffscreenCanvas(sourceCanvas.width, sourceCanvas.height);
+  const outputCtx = outputCanvas.getContext("2d");
+
+  outputCtx.save();
+  outputCtx.translate(sourceCanvas.width, 0);
+  outputCtx.scale(-1, 1);
+  outputCtx.drawImage(sourceCanvas, 0, 0);
+  outputCtx.restore();
+
+  return outputCanvas;
+}
+
+function createSquintCanvasFromCanvas(sourceCanvas, options = {}) {
+  const { softness = 35 } = options;
+  const clampedSoftness = clamp(softness, 0, 100);
+  const totalPasses = (clampedSoftness / 100) * 4;
+  const wholePasses = Math.floor(totalPasses);
+  const blendAmount = totalPasses - wholePasses;
+
+  let baseCanvas = sourceCanvas;
+  if (wholePasses > 0) {
+    baseCanvas = createBlurredGrayscaleCanvas(sourceCanvas, wholePasses);
+  }
+
+  const outputCanvas = createOffscreenCanvas(sourceCanvas.width, sourceCanvas.height);
+  const outputCtx = outputCanvas.getContext("2d");
+  outputCtx.drawImage(baseCanvas, 0, 0);
+
+  if (blendAmount > 0.001) {
+    const nextCanvas = createBlurredGrayscaleCanvas(baseCanvas, 1);
+    outputCtx.save();
+    outputCtx.globalAlpha = blendAmount;
+    outputCtx.drawImage(nextCanvas, 0, 0);
+    outputCtx.restore();
+  }
+
+  return outputCanvas;
+}
+
 /* ---------------------------------
    Grid overlay utilities
 --------------------------------- */
@@ -719,6 +759,9 @@ class PaintersReferenceApp {
       outlineSmoothingInput: document.getElementById("outlineSmoothingInput"),
       outlineSmoothingValue: document.getElementById("outlineSmoothingValue"),
       outlinePresetButtons: Array.from(document.querySelectorAll("[data-outline-preset]")),
+      squintControlsSection: document.getElementById("squintControlsSection"),
+      squintBlurInput: document.getElementById("squintBlurInput"),
+      squintBlurValue: document.getElementById("squintBlurValue"),
       notanShadowCutoffInput: document.getElementById("notanShadowCutoffInput"),
       notanShadowCutoffValue: document.getElementById("notanShadowCutoffValue"),
       notanLightCutoffInput: document.getElementById("notanLightCutoffInput"),
@@ -764,6 +807,9 @@ class PaintersReferenceApp {
         sensitivity: 60,
         smoothing: 1
       },
+      squint: {
+        softness: 35
+      },
       stageSelections: {
         baseline: "original",
         composition: "focalStudy",
@@ -787,7 +833,9 @@ class PaintersReferenceApp {
         lightMaskCanvas: null,
         midtoneMaskCanvas: null,
         shadowMaskCanvas: null,
-        outlineSketchCanvas: null
+        outlineSketchCanvas: null,
+        squintCanvas: null,
+        mirrorCanvas: null
       },
       grid: {
         show: true,
@@ -812,6 +860,8 @@ class PaintersReferenceApp {
       original: "baseline",
       focalStudy: "composition",
       outlineSketch: "drawing",
+      squint: "drawing",
+      mirror: "drawing",
       grayscale: "painting",
       notan: "painting",
       lightMask: "painting",
@@ -881,6 +931,18 @@ class PaintersReferenceApp {
       );
       this.refreshOutlineCanvas();
       this.updateOutlineControls();
+      this.renderScene();
+    });
+
+    this.dom.squintBlurInput.addEventListener("input", () => {
+      this.state.squint.softness = this.getSafeInteger(
+        this.dom.squintBlurInput.value,
+        35,
+        0,
+        100
+      );
+      this.refreshSquintCanvas();
+      this.updateSquintControls();
       this.renderScene();
     });
 
@@ -1032,6 +1094,7 @@ class PaintersReferenceApp {
     this.updateStagePanels();
     this.updateOutlineDetailLabel();
     this.updateOutlineControls();
+    this.updateSquintControls();
     this.updateNotanControls();
     this.updateFocalStudyControls();
     this.updateReferenceSection();
@@ -1046,7 +1109,9 @@ class PaintersReferenceApp {
       lightMask: "Light Mask",
       midtoneMask: "Midtone Mask",
       shadowMask: "Shadow Mask",
-      outlineSketch: "Rough Outline Sketch"
+      outlineSketch: "Rough Outline Sketch",
+      squint: "Squint",
+      mirror: "Mirror Check"
     };
 
     this.dom.viewModeText.textContent = labels[this.state.viewMode] || "Original";
@@ -1085,6 +1150,8 @@ class PaintersReferenceApp {
       original: "Original",
       focalStudy: "Focal Study",
       outlineSketch: "Rough Outline",
+      squint: "Squint",
+      mirror: "Mirror Check",
       grayscale: "Grayscale",
       notan: "3-Value Notan",
       lightMask: "Light Mask",
@@ -1111,6 +1178,10 @@ class PaintersReferenceApp {
     const isOutlineActive =
       this.state.activeStage === "drawing" && this.state.viewMode === "outlineSketch";
     this.dom.outlineControlsSection.classList.toggle("is-hidden", !isOutlineActive);
+
+    const isSquintActive =
+      this.state.activeStage === "drawing" && this.state.viewMode === "squint";
+    this.dom.squintControlsSection.classList.toggle("is-hidden", !isSquintActive);
   }
 
   updateOutlineControls() {
@@ -1136,6 +1207,11 @@ class PaintersReferenceApp {
     this.dom.notanLightCutoffInput.value = this.state.notan.lightCutoff;
     this.dom.notanShadowCutoffValue.textContent = `${this.state.notan.shadowCutoff}`;
     this.dom.notanLightCutoffValue.textContent = `${this.state.notan.lightCutoff}`;
+  }
+
+  updateSquintControls() {
+    this.dom.squintBlurInput.value = this.state.squint.softness;
+    this.dom.squintBlurValue.textContent = `${this.state.squint.softness}%`;
   }
 
   updateFocalStudyControls() {
@@ -1176,6 +1252,33 @@ class PaintersReferenceApp {
       this.state.processed.grayscaleCanvas,
       this.state.outline
     );
+    this.refreshDrawingDerivedCanvases();
+  }
+
+  refreshSquintCanvas() {
+    if (!this.state.processed.outlineSketchCanvas) {
+      return;
+    }
+
+    this.state.processed.squintCanvas = createSquintCanvasFromCanvas(
+      this.state.processed.outlineSketchCanvas,
+      this.state.squint
+    );
+  }
+
+  refreshMirrorCanvas() {
+    if (!this.state.processed.outlineSketchCanvas) {
+      return;
+    }
+
+    this.state.processed.mirrorCanvas = createMirroredCanvasFromCanvas(
+      this.state.processed.outlineSketchCanvas
+    );
+  }
+
+  refreshDrawingDerivedCanvases() {
+    this.refreshSquintCanvas();
+    this.refreshMirrorCanvas();
   }
 
   getSafeInteger(value, fallback, min, max) {
@@ -1244,6 +1347,8 @@ class PaintersReferenceApp {
 
     const outlineSketchCanvas =
       createOutlineSketchCanvasFromGrayscaleCanvas(grayscaleCanvas, this.state.outline);
+    const squintCanvas = createSquintCanvasFromCanvas(outlineSketchCanvas, this.state.squint);
+    const mirrorCanvas = createMirroredCanvasFromCanvas(outlineSketchCanvas);
 
     this.state.processed.originalCanvas = originalCanvas;
     this.state.processed.grayscaleCanvas = grayscaleCanvas;
@@ -1252,6 +1357,8 @@ class PaintersReferenceApp {
     this.state.processed.midtoneMaskCanvas = midtoneMaskCanvas;
     this.state.processed.shadowMaskCanvas = shadowMaskCanvas;
     this.state.processed.outlineSketchCanvas = outlineSketchCanvas;
+    this.state.processed.squintCanvas = squintCanvas;
+    this.state.processed.mirrorCanvas = mirrorCanvas;
 
     this.state.workingCanvasWidth = contained.width;
     this.state.workingCanvasHeight = contained.height;
@@ -1270,7 +1377,9 @@ class PaintersReferenceApp {
       lightMask: this.state.processed.lightMaskCanvas,
       midtoneMask: this.state.processed.midtoneMaskCanvas,
       shadowMask: this.state.processed.shadowMaskCanvas,
-      outlineSketch: this.getActiveOutlineCanvas()
+      outlineSketch: this.getActiveOutlineCanvas(),
+      squint: this.state.processed.squintCanvas,
+      mirror: this.state.processed.mirrorCanvas
     };
 
     return map[this.state.viewMode] || this.state.processed.originalCanvas;
