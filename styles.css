@@ -303,6 +303,27 @@ input[type="range"] {
   display: none;
 }
 
+.detail-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.detail-status-label {
+  font-size: 0.82rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.preset-button-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
 .control-cluster {
   margin-top: 2px;
   padding: 10px;
@@ -422,6 +443,18 @@ button:disabled:hover {
   min-width: 118px;
   padding: 9px 12px;
   background: linear-gradient(180deg, #fffdf8 0%, #f3eee4 100%);
+}
+
+.secondary-button--small {
+  min-width: 0;
+  padding: 7px 10px;
+  font-size: 0.82rem;
+}
+
+.outline-preset-button.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: #4e3a1f;
 }
 
 .export-actions {

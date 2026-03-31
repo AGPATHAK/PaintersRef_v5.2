@@ -134,19 +134,62 @@
         <section class="panel-section compact-section workflow-stage" data-stage-section="drawing">
           <button type="button" class="stage-toggle" data-stage-toggle="drawing">
             <span class="stage-toggle-label">Drawing</span>
-            <span id="drawingStageValue" class="stage-toggle-value">Rough Outline Sketch</span>
+            <span id="drawingStageValue" class="stage-toggle-value">Outline (Medium)</span>
           </button>
           <div class="stage-body" data-stage-body="drawing">
             <div class="view-mode-grid view-mode-grid--single">
               <button type="button" class="view-mode-button" data-view-mode="outlineSketch">Rough Outline Sketch</button>
             </div>
-            <div class="field">
-              <label for="outlineDetailSelect">Outline Detail</label>
-              <select id="outlineDetailSelect">
-                <option value="low">Low Detail</option>
-                <option value="medium" selected>Medium Detail</option>
-                <option value="high">High Detail</option>
-              </select>
+            <div id="outlineControlsSection" class="mode-detail">
+              <div class="detail-header-row">
+                <h3>Outline Controls</h3>
+                <span id="outlinePresetLabel" class="detail-status-label">Medium</span>
+              </div>
+              <div class="preset-button-row">
+                <button type="button" class="secondary-button secondary-button--small outline-preset-button" data-outline-preset="low">Low</button>
+                <button type="button" class="secondary-button secondary-button--small outline-preset-button" data-outline-preset="medium">Medium</button>
+                <button type="button" class="secondary-button secondary-button--small outline-preset-button" data-outline-preset="high">High</button>
+              </div>
+              <div class="form-grid simple-grid-controls">
+                <div class="field">
+                  <label for="outlineSensitivityInput">Edge Sensitivity</label>
+                  <input
+                    id="outlineSensitivityInput"
+                    type="range"
+                    min="10"
+                    max="120"
+                    value="60"
+                    list="outlineSensitivityMarkers"
+                  />
+                  <datalist id="outlineSensitivityMarkers">
+                    <option value="30" label="Low"></option>
+                    <option value="60" label="Medium"></option>
+                    <option value="90" label="High"></option>
+                  </datalist>
+                  <p id="outlineSensitivityValue" class="slider-value">60</p>
+                </div>
+
+                <div class="field">
+                  <label for="outlineSmoothingInput">Smoothing</label>
+                  <input
+                    id="outlineSmoothingInput"
+                    type="range"
+                    min="0"
+                    max="3"
+                    value="1"
+                    list="outlineSmoothingMarkers"
+                  />
+                  <datalist id="outlineSmoothingMarkers">
+                    <option value="0" label="High"></option>
+                    <option value="1" label="Medium"></option>
+                    <option value="2" label="Low"></option>
+                  </datalist>
+                  <p id="outlineSmoothingValue" class="slider-value">1 pass</p>
+                </div>
+              </div>
+              <p class="helper-text">
+                Standard anchors: Low `30/2`, Medium `60/1`, High `90/0`.
+              </p>
             </div>
             <p class="helper-text">
               Use Rough Outline Sketch to support block-in and proportion checks.
@@ -166,6 +209,50 @@
               <button type="button" class="view-mode-button" data-view-mode="lightMask">Light Mask</button>
               <button type="button" class="view-mode-button" data-view-mode="midtoneMask">Midtone Mask</button>
               <button type="button" class="view-mode-button" data-view-mode="shadowMask">Shadow Mask</button>
+            </div>
+            <div id="notanControlsSection" class="mode-detail is-hidden">
+              <div class="detail-header-row">
+                <h3>Notan Controls</h3>
+                <button id="resetNotanButton" type="button" class="secondary-button secondary-button--small">
+                  Reset Standard
+                </button>
+              </div>
+              <div class="form-grid simple-grid-controls">
+                <div class="field">
+                  <label for="notanShadowCutoffInput">Shadow Cutoff</label>
+                  <input
+                    id="notanShadowCutoffInput"
+                    type="range"
+                    min="0"
+                    max="245"
+                    value="85"
+                    list="notanShadowCutoffMarkers"
+                  />
+                  <datalist id="notanShadowCutoffMarkers">
+                    <option value="85" label="Standard"></option>
+                  </datalist>
+                  <p id="notanShadowCutoffValue" class="slider-value">85</p>
+                </div>
+
+                <div class="field">
+                  <label for="notanLightCutoffInput">Light Cutoff</label>
+                  <input
+                    id="notanLightCutoffInput"
+                    type="range"
+                    min="10"
+                    max="255"
+                    value="170"
+                    list="notanLightCutoffMarkers"
+                  />
+                  <datalist id="notanLightCutoffMarkers">
+                    <option value="170" label="Standard"></option>
+                  </datalist>
+                  <p id="notanLightCutoffValue" class="slider-value">170</p>
+                </div>
+              </div>
+              <p class="helper-text">
+                Standard split: shadow `85`, light `170`. Midtones stay between the two cutoffs.
+              </p>
             </div>
             <p class="helper-text">
               Use these views to simplify value structure while painting.
@@ -215,7 +302,7 @@
             </div>
             <div>
               <dt>Outline</dt>
-              <dd id="outlineDetailText">Medium Detail</dd>
+              <dd id="outlineDetailText">Medium</dd>
             </div>
           </dl>
         </section>

@@ -134,7 +134,11 @@ function createGrayscaleCanvasFromCanvas(sourceCanvas) {
    3-value Notan processing
 --------------------------------- */
 
-function createNotanCanvasFromGrayscaleCanvas(grayscaleCanvas) {
+function createNotanCanvasFromGrayscaleCanvas(grayscaleCanvas, options = {}) {
+  const {
+    shadowCutoff = 85,
+    lightCutoff = 170
+  } = options;
   const outputCanvas = createOffscreenCanvas(grayscaleCanvas.width, grayscaleCanvas.height);
   const outputCtx = outputCanvas.getContext("2d", { willReadFrequently: true });
 
@@ -147,9 +151,9 @@ function createNotanCanvasFromGrayscaleCanvas(grayscaleCanvas) {
     const value = data[i];
     let posterized = 255;
 
-    if (value <= 85) {
+    if (value <= shadowCutoff) {
       posterized = 0;
-    } else if (value <= 170) {
+    } else if (value < lightCutoff) {
       posterized = 127;
     }
 
@@ -215,23 +219,60 @@ function createTintedMaskCanvasFromGrayscaleCanvas(grayscaleCanvas, maskType) {
 function getOutlinePresetSettings(detailLevel) {
   const presets = {
     low: {
-      label: "Low Detail",
-      blurPasses: 2,
-      threshold: 150
+      label: "Low",
+      sensitivity: 30,
+      smoothing: 2
     },
     medium: {
-      label: "Medium Detail",
-      blurPasses: 1,
-      threshold: 120
+      label: "Medium",
+      sensitivity: 60,
+      smoothing: 1
     },
     high: {
-      label: "High Detail",
-      blurPasses: 1,
-      threshold: 90
+      label: "High",
+      sensitivity: 90,
+      smoothing: 0
     }
   };
 
   return presets[detailLevel] || presets.medium;
+}
+
+function getMatchingOutlinePresetKey(outlineOptions) {
+  const presetKeys = ["low", "medium", "high"];
+
+  for (const presetKey of presetKeys) {
+    const preset = getOutlinePresetSettings(presetKey);
+    if (
+      preset.sensitivity === outlineOptions.sensitivity &&
+      preset.smoothing === outlineOptions.smoothing
+    ) {
+      return presetKey;
+    }
+  }
+
+  return null;
+}
+
+function getOutlineDisplayLabel(outlineOptions) {
+  const presetKey = getMatchingOutlinePresetKey(outlineOptions);
+  if (presetKey) {
+    return getOutlinePresetSettings(presetKey).label;
+  }
+
+  return "Custom";
+}
+
+function getOutlineRenderSettings(outlineOptions) {
+  const sensitivity = clamp(outlineOptions.sensitivity, 10, 120);
+  const smoothing = clamp(outlineOptions.smoothing, 0, 3);
+
+  return {
+    sensitivity,
+    smoothing,
+    threshold: clamp(180 - sensitivity, 40, 170),
+    blurPasses: smoothing
+  };
 }
 
 function blurGrayscaleCanvasOnce(sourceCanvas) {
@@ -288,9 +329,9 @@ function createBlurredGrayscaleCanvas(sourceCanvas, blurPasses) {
   return currentCanvas;
 }
 
-function createOutlineSketchCanvasFromGrayscaleCanvas(grayscaleCanvas, detailLevel) {
-  const preset = getOutlinePresetSettings(detailLevel);
-  const blurredCanvas = createBlurredGrayscaleCanvas(grayscaleCanvas, preset.blurPasses);
+function createOutlineSketchCanvasFromGrayscaleCanvas(grayscaleCanvas, outlineOptions) {
+  const settings = getOutlineRenderSettings(outlineOptions);
+  const blurredCanvas = createBlurredGrayscaleCanvas(grayscaleCanvas, settings.blurPasses);
 
   const width = blurredCanvas.width;
   const height = blurredCanvas.height;
@@ -337,7 +378,7 @@ function createOutlineSketchCanvasFromGrayscaleCanvas(grayscaleCanvas, detailLev
       }
 
       const magnitude = Math.sqrt((gx * gx) + (gy * gy));
-      const isEdge = magnitude >= preset.threshold;
+      const isEdge = magnitude >= settings.threshold;
       const outputValue = isEdge ? 0 : 255;
       const index = (y * width + x) * 4;
 
@@ -671,6 +712,19 @@ class PaintersReferenceApp {
       scaleText: document.getElementById("scaleText"),
       viewModeText: document.getElementById("viewModeText"),
       outlineDetailText: document.getElementById("outlineDetailText"),
+      outlineControlsSection: document.getElementById("outlineControlsSection"),
+      outlinePresetLabel: document.getElementById("outlinePresetLabel"),
+      outlineSensitivityInput: document.getElementById("outlineSensitivityInput"),
+      outlineSensitivityValue: document.getElementById("outlineSensitivityValue"),
+      outlineSmoothingInput: document.getElementById("outlineSmoothingInput"),
+      outlineSmoothingValue: document.getElementById("outlineSmoothingValue"),
+      outlinePresetButtons: Array.from(document.querySelectorAll("[data-outline-preset]")),
+      notanShadowCutoffInput: document.getElementById("notanShadowCutoffInput"),
+      notanShadowCutoffValue: document.getElementById("notanShadowCutoffValue"),
+      notanLightCutoffInput: document.getElementById("notanLightCutoffInput"),
+      notanLightCutoffValue: document.getElementById("notanLightCutoffValue"),
+      notanControlsSection: document.getElementById("notanControlsSection"),
+      resetNotanButton: document.getElementById("resetNotanButton"),
       focalRadiusInput: document.getElementById("focalRadiusInput"),
       focalRadiusValue: document.getElementById("focalRadiusValue"),
       focalSoftnessInput: document.getElementById("focalSoftnessInput"),
@@ -689,7 +743,6 @@ class PaintersReferenceApp {
       showGridInput: document.getElementById("showGridInput"),
       rowsInput: document.getElementById("rowsInput"),
       columnsInput: document.getElementById("columnsInput"),
-      outlineDetailSelect: document.getElementById("outlineDetailSelect"),
 
       exportSheet1Button: document.getElementById("exportSheet1Button"),
       exportSheet2Button: document.getElementById("exportSheet2Button")
@@ -707,12 +760,20 @@ class PaintersReferenceApp {
       workingScale: 1,
       viewMode: "original",
       activeStage: "baseline",
-      outlineDetail: "medium",
+      outline: {
+        sensitivity: 60,
+        smoothing: 1
+      },
       stageSelections: {
         baseline: "original",
         composition: "focalStudy",
         drawing: "outlineSketch",
         painting: "grayscale"
+      },
+      notan: {
+        shadowCutoff: 85,
+        lightCutoff: 170,
+        minimumGap: 10
       },
       focalStudy: {
         point: null,
@@ -726,9 +787,7 @@ class PaintersReferenceApp {
         lightMaskCanvas: null,
         midtoneMaskCanvas: null,
         shadowMaskCanvas: null,
-        outlineSketchLowCanvas: null,
-        outlineSketchMediumCanvas: null,
-        outlineSketchHighCanvas: null
+        outlineSketchCanvas: null
       },
       grid: {
         show: true,
@@ -801,6 +860,62 @@ class PaintersReferenceApp {
       this.renderScene();
     });
 
+    this.dom.outlineSensitivityInput.addEventListener("input", () => {
+      this.state.outline.sensitivity = this.getSafeInteger(
+        this.dom.outlineSensitivityInput.value,
+        60,
+        10,
+        120
+      );
+      this.refreshOutlineCanvas();
+      this.updateOutlineControls();
+      this.renderScene();
+    });
+
+    this.dom.outlineSmoothingInput.addEventListener("input", () => {
+      this.state.outline.smoothing = this.getSafeInteger(
+        this.dom.outlineSmoothingInput.value,
+        1,
+        0,
+        3
+      );
+      this.refreshOutlineCanvas();
+      this.updateOutlineControls();
+      this.renderScene();
+    });
+
+    this.dom.notanShadowCutoffInput.addEventListener("input", () => {
+      const nextShadowCutoff = this.getSafeInteger(
+        this.dom.notanShadowCutoffInput.value,
+        85,
+        0,
+        245
+      );
+      this.state.notan.shadowCutoff = Math.min(
+        nextShadowCutoff,
+        this.state.notan.lightCutoff - this.state.notan.minimumGap
+      );
+      this.refreshNotanCanvas();
+      this.updateNotanControls();
+      this.renderScene();
+    });
+
+    this.dom.notanLightCutoffInput.addEventListener("input", () => {
+      const nextLightCutoff = this.getSafeInteger(
+        this.dom.notanLightCutoffInput.value,
+        170,
+        10,
+        255
+      );
+      this.state.notan.lightCutoff = Math.max(
+        nextLightCutoff,
+        this.state.notan.shadowCutoff + this.state.notan.minimumGap
+      );
+      this.refreshNotanCanvas();
+      this.updateNotanControls();
+      this.renderScene();
+    });
+
     this.dom.focalRadiusInput.addEventListener("input", () => {
       this.state.focalStudy.radiusPercent = this.getSafeInteger(
         this.dom.focalRadiusInput.value,
@@ -834,6 +949,22 @@ class PaintersReferenceApp {
       });
     });
 
+    this.dom.outlinePresetButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const presetKey = button.dataset.outlinePreset;
+        if (!presetKey) {
+          return;
+        }
+
+        const preset = getOutlinePresetSettings(presetKey);
+        this.state.outline.sensitivity = preset.sensitivity;
+        this.state.outline.smoothing = preset.smoothing;
+        this.refreshOutlineCanvas();
+        this.updateOutlineControls();
+        this.renderScene();
+      });
+    });
+
     this.dom.stageToggleButtons.forEach((button) => {
       button.addEventListener("click", () => {
         const stage = button.dataset.stageToggle;
@@ -852,12 +983,6 @@ class PaintersReferenceApp {
       });
     });
 
-    this.dom.outlineDetailSelect.addEventListener("change", () => {
-      this.state.outlineDetail = this.dom.outlineDetailSelect.value;
-      this.updateOutlineDetailLabel();
-      this.renderScene();
-    });
-
     this.dom.exportSheet1Button.addEventListener("click", () => {
       this.exportSheet1();
     });
@@ -870,6 +995,14 @@ class PaintersReferenceApp {
       this.state.focalStudy.point = null;
       this.updateFocalStudyControls();
       this.updateStatus("Focal point cleared");
+      this.renderScene();
+    });
+
+    this.dom.resetNotanButton.addEventListener("click", () => {
+      this.state.notan.shadowCutoff = 85;
+      this.state.notan.lightCutoff = 170;
+      this.refreshNotanCanvas();
+      this.updateNotanControls();
       this.renderScene();
     });
 
@@ -894,11 +1027,12 @@ class PaintersReferenceApp {
     this.dom.showGridInput.checked = this.state.grid.show;
     this.dom.rowsInput.value = this.state.grid.rows;
     this.dom.columnsInput.value = this.state.grid.columns;
-    this.dom.outlineDetailSelect.value = this.state.outlineDetail;
     this.updateViewModeLabel();
     this.updateViewModeButtons();
     this.updateStagePanels();
     this.updateOutlineDetailLabel();
+    this.updateOutlineControls();
+    this.updateNotanControls();
     this.updateFocalStudyControls();
     this.updateReferenceSection();
   }
@@ -919,8 +1053,7 @@ class PaintersReferenceApp {
   }
 
   updateOutlineDetailLabel() {
-    this.dom.outlineDetailText.textContent =
-      getOutlinePresetSettings(this.state.outlineDetail).label;
+    this.dom.outlineDetailText.textContent = getOutlineDisplayLabel(this.state.outline);
   }
 
   updateViewModeButtons() {
@@ -964,10 +1097,45 @@ class PaintersReferenceApp {
     this.dom.compositionStageValue.textContent =
       labels[this.state.stageSelections.composition] || "Focal Study";
     this.dom.drawingStageValue.textContent =
-      labels[this.state.stageSelections.drawing] || "Rough Outline";
+      this.state.stageSelections.drawing === "outlineSketch"
+        ? `Outline (${getOutlineDisplayLabel(this.state.outline)})`
+        : (labels[this.state.stageSelections.drawing] || "Rough Outline");
     this.dom.paintingStageValue.textContent =
       labels[this.state.stageSelections.painting] || "Grayscale";
     this.dom.generalStageValue.textContent = "Exports";
+
+    const isNotanActive =
+      this.state.activeStage === "painting" && this.state.viewMode === "notan";
+    this.dom.notanControlsSection.classList.toggle("is-hidden", !isNotanActive);
+
+    const isOutlineActive =
+      this.state.activeStage === "drawing" && this.state.viewMode === "outlineSketch";
+    this.dom.outlineControlsSection.classList.toggle("is-hidden", !isOutlineActive);
+  }
+
+  updateOutlineControls() {
+    this.dom.outlineSensitivityInput.value = this.state.outline.sensitivity;
+    this.dom.outlineSmoothingInput.value = this.state.outline.smoothing;
+    this.dom.outlineSensitivityValue.textContent = `${this.state.outline.sensitivity}`;
+    this.dom.outlineSmoothingValue.textContent =
+      `${this.state.outline.smoothing} ${this.state.outline.smoothing === 1 ? "pass" : "passes"}`;
+
+    const activePresetKey = getMatchingOutlinePresetKey(this.state.outline);
+    this.dom.outlinePresetLabel.textContent =
+      activePresetKey ? getOutlinePresetSettings(activePresetKey).label : "Custom";
+
+    this.dom.outlinePresetButtons.forEach((button) => {
+      const isActive = button.dataset.outlinePreset === activePresetKey;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+  }
+
+  updateNotanControls() {
+    this.dom.notanShadowCutoffInput.value = this.state.notan.shadowCutoff;
+    this.dom.notanLightCutoffInput.value = this.state.notan.lightCutoff;
+    this.dom.notanShadowCutoffValue.textContent = `${this.state.notan.shadowCutoff}`;
+    this.dom.notanLightCutoffValue.textContent = `${this.state.notan.lightCutoff}`;
   }
 
   updateFocalStudyControls() {
@@ -983,6 +1151,31 @@ class PaintersReferenceApp {
     this.dom.referenceUploadBlock.classList.toggle("is-hidden", hasLoadedImage);
     this.dom.referenceSummary.classList.toggle("is-hidden", !hasLoadedImage);
     this.dom.referenceFileName.textContent = this.state.loadedFileName || "None";
+  }
+
+  refreshNotanCanvas() {
+    if (!this.state.processed.grayscaleCanvas) {
+      return;
+    }
+
+    this.state.processed.notanCanvas = createNotanCanvasFromGrayscaleCanvas(
+      this.state.processed.grayscaleCanvas,
+      {
+        shadowCutoff: this.state.notan.shadowCutoff,
+        lightCutoff: this.state.notan.lightCutoff
+      }
+    );
+  }
+
+  refreshOutlineCanvas() {
+    if (!this.state.processed.grayscaleCanvas) {
+      return;
+    }
+
+    this.state.processed.outlineSketchCanvas = createOutlineSketchCanvasFromGrayscaleCanvas(
+      this.state.processed.grayscaleCanvas,
+      this.state.outline
+    );
   }
 
   getSafeInteger(value, fallback, min, max) {
@@ -1040,18 +1233,17 @@ class PaintersReferenceApp {
     drawImageContained(originalCtx, image, originalCanvas);
 
     const grayscaleCanvas = createGrayscaleCanvasFromCanvas(originalCanvas);
-    const notanCanvas = createNotanCanvasFromGrayscaleCanvas(grayscaleCanvas);
+    const notanCanvas = createNotanCanvasFromGrayscaleCanvas(grayscaleCanvas, {
+      shadowCutoff: this.state.notan.shadowCutoff,
+      lightCutoff: this.state.notan.lightCutoff
+    });
 
     const lightMaskCanvas = createTintedMaskCanvasFromGrayscaleCanvas(grayscaleCanvas, "light");
     const midtoneMaskCanvas = createTintedMaskCanvasFromGrayscaleCanvas(grayscaleCanvas, "midtone");
     const shadowMaskCanvas = createTintedMaskCanvasFromGrayscaleCanvas(grayscaleCanvas, "shadow");
 
-    const outlineSketchLowCanvas =
-      createOutlineSketchCanvasFromGrayscaleCanvas(grayscaleCanvas, "low");
-    const outlineSketchMediumCanvas =
-      createOutlineSketchCanvasFromGrayscaleCanvas(grayscaleCanvas, "medium");
-    const outlineSketchHighCanvas =
-      createOutlineSketchCanvasFromGrayscaleCanvas(grayscaleCanvas, "high");
+    const outlineSketchCanvas =
+      createOutlineSketchCanvasFromGrayscaleCanvas(grayscaleCanvas, this.state.outline);
 
     this.state.processed.originalCanvas = originalCanvas;
     this.state.processed.grayscaleCanvas = grayscaleCanvas;
@@ -1059,9 +1251,7 @@ class PaintersReferenceApp {
     this.state.processed.lightMaskCanvas = lightMaskCanvas;
     this.state.processed.midtoneMaskCanvas = midtoneMaskCanvas;
     this.state.processed.shadowMaskCanvas = shadowMaskCanvas;
-    this.state.processed.outlineSketchLowCanvas = outlineSketchLowCanvas;
-    this.state.processed.outlineSketchMediumCanvas = outlineSketchMediumCanvas;
-    this.state.processed.outlineSketchHighCanvas = outlineSketchHighCanvas;
+    this.state.processed.outlineSketchCanvas = outlineSketchCanvas;
 
     this.state.workingCanvasWidth = contained.width;
     this.state.workingCanvasHeight = contained.height;
@@ -1069,13 +1259,7 @@ class PaintersReferenceApp {
   }
 
   getActiveOutlineCanvas() {
-    if (this.state.outlineDetail === "low") {
-      return this.state.processed.outlineSketchLowCanvas;
-    }
-    if (this.state.outlineDetail === "high") {
-      return this.state.processed.outlineSketchHighCanvas;
-    }
-    return this.state.processed.outlineSketchMediumCanvas;
+    return this.state.processed.outlineSketchCanvas;
   }
 
   getActiveBaseCanvas() {
@@ -1308,7 +1492,7 @@ class PaintersReferenceApp {
           showGrid: false
         },
         {
-          label: `Outline (${getOutlinePresetSettings(this.state.outlineDetail).label})`,
+          label: `Outline (${getOutlineDisplayLabel(this.state.outline)})`,
           canvas: this.getActiveOutlineCanvas(),
           showGrid: true,
           gridOptions: this.state.grid
