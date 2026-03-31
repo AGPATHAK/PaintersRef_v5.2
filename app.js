@@ -616,6 +616,20 @@ function createCompositeSheet(panels, filename, options = {}) {
   downloadCanvas(sheetCanvas, filename, "image/jpeg", 0.92);
 }
 
+function createExportFileStem(fileName) {
+  if (!fileName) {
+    return "painters-ref";
+  }
+
+  const withoutExtension = fileName.replace(/\.[^/.]+$/, "");
+  const sanitized = withoutExtension
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return sanitized || "painters-ref";
+}
+
 /* ---------------------------------
    Focal study utilities
 --------------------------------- */
@@ -788,7 +802,8 @@ class PaintersReferenceApp {
       columnsInput: document.getElementById("columnsInput"),
 
       exportSheet1Button: document.getElementById("exportSheet1Button"),
-      exportSheet2Button: document.getElementById("exportSheet2Button")
+      exportSheet2Button: document.getElementById("exportSheet2Button"),
+      exportCurrentViewButton: document.getElementById("exportCurrentViewButton")
     };
 
     this.ctx = this.dom.mainCanvas.getContext("2d", { alpha: false });
@@ -816,6 +831,7 @@ class PaintersReferenceApp {
         drawing: "outlineSketch",
         painting: "grayscale"
       },
+      drawingSource: "outline",
       notan: {
         shadowCutoff: 85,
         lightCutoff: 170,
@@ -875,6 +891,14 @@ class PaintersReferenceApp {
   setViewMode(nextViewMode) {
     if (!nextViewMode) {
       return;
+    }
+
+    if (nextViewMode === "outlineSketch") {
+      this.state.drawingSource = "outline";
+      this.refreshSquintCanvas();
+    } else if (nextViewMode === "mirror") {
+      this.state.drawingSource = "mirror";
+      this.refreshSquintCanvas();
     }
 
     this.state.viewMode = nextViewMode;
@@ -1053,6 +1077,10 @@ class PaintersReferenceApp {
       this.exportSheet2();
     });
 
+    this.dom.exportCurrentViewButton.addEventListener("click", () => {
+      this.exportCurrentView();
+    });
+
     this.dom.clearFocalPointButton.addEventListener("click", () => {
       this.state.focalStudy.point = null;
       this.updateFocalStudyControls();
@@ -1114,7 +1142,28 @@ class PaintersReferenceApp {
       mirror: "Mirror Check"
     };
 
+    if (this.state.viewMode === "squint" && this.state.drawingSource === "mirror") {
+      this.dom.viewModeText.textContent = "Squint (Mirror)";
+      return;
+    }
+
     this.dom.viewModeText.textContent = labels[this.state.viewMode] || "Original";
+  }
+
+  getDrawingViewLabel(viewMode = this.state.stageSelections.drawing) {
+    if (viewMode === "outlineSketch") {
+      return `Outline (${getOutlineDisplayLabel(this.state.outline)})`;
+    }
+
+    if (viewMode === "squint") {
+      return this.state.drawingSource === "mirror" ? "Squint (Mirror)" : "Squint";
+    }
+
+    if (viewMode === "mirror") {
+      return "Mirror Check";
+    }
+
+    return "Outline";
   }
 
   updateOutlineDetailLabel() {
@@ -1163,10 +1212,7 @@ class PaintersReferenceApp {
       labels[this.state.stageSelections.baseline] || "Original";
     this.dom.compositionStageValue.textContent =
       labels[this.state.stageSelections.composition] || "Focal Study";
-    this.dom.drawingStageValue.textContent =
-      this.state.stageSelections.drawing === "outlineSketch"
-        ? `Outline (${getOutlineDisplayLabel(this.state.outline)})`
-        : (labels[this.state.stageSelections.drawing] || "Rough Outline");
+    this.dom.drawingStageValue.textContent = this.getDrawingViewLabel();
     this.dom.paintingStageValue.textContent =
       labels[this.state.stageSelections.painting] || "Grayscale";
     this.dom.generalStageValue.textContent = "Exports";
@@ -1256,12 +1302,13 @@ class PaintersReferenceApp {
   }
 
   refreshSquintCanvas() {
-    if (!this.state.processed.outlineSketchCanvas) {
+    const sourceCanvas = this.getCurrentSquintSourceCanvas();
+    if (!sourceCanvas) {
       return;
     }
 
     this.state.processed.squintCanvas = createSquintCanvasFromCanvas(
-      this.state.processed.outlineSketchCanvas,
+      sourceCanvas,
       this.state.squint
     );
   }
@@ -1277,8 +1324,16 @@ class PaintersReferenceApp {
   }
 
   refreshDrawingDerivedCanvases() {
-    this.refreshSquintCanvas();
     this.refreshMirrorCanvas();
+    this.refreshSquintCanvas();
+  }
+
+  getCurrentSquintSourceCanvas() {
+    if (this.state.drawingSource === "mirror") {
+      return this.state.processed.mirrorCanvas;
+    }
+
+    return this.state.processed.outlineSketchCanvas;
   }
 
   getSafeInteger(value, fallback, min, max) {
@@ -1304,6 +1359,7 @@ class PaintersReferenceApp {
       this.state.originalHeight = image.naturalHeight;
       this.state.loadedFileName = file.name;
       this.state.focalStudy.point = null;
+      this.state.drawingSource = "outline";
 
       this.prepareWorkingCanvases();
       this.renderScene();
@@ -1575,6 +1631,24 @@ class PaintersReferenceApp {
 
   updateStatus(message) {
     this.dom.statusText.textContent = message;
+  }
+
+  exportCurrentView() {
+    if (!this.state.processed.originalCanvas) {
+      alert("Please load an image before exporting.");
+      return;
+    }
+
+    const viewLabel = this.dom.viewModeText.textContent || "current-view";
+    const slug = viewLabel
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    const fileStem = createExportFileStem(this.state.loadedFileName);
+    const filename = `${fileStem}-${slug || "current-view"}.jpg`;
+
+    downloadCanvas(this.dom.mainCanvas, filename, "image/jpeg", 0.92);
+    this.updateStatus("Current view exported");
   }
 
   exportSheet1() {
