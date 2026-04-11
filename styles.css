@@ -477,12 +477,14 @@ button:disabled:hover {
 .canvas-panel {
   padding: 16px;
   min-width: 0;
+  height: calc(100vh - 140px);
 }
 
 .canvas-stage {
   position: relative;
   width: 100%;
-  min-height: 640px;
+  height: 100%;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -495,7 +497,7 @@ button:disabled:hover {
   background-position: 0 0, 0 12px, 12px -12px, -12px 0;
   border: 1px solid rgba(217, 210, 196, 0.92);
   border-radius: 12px;
-  overflow: auto;
+  overflow: hidden;
 }
 
 #mainCanvas {
@@ -504,7 +506,9 @@ button:disabled:hover {
   border-radius: 8px;
   box-shadow: 0 4px 14px rgba(44, 34, 20, 0.08);
   max-width: 100%;
+  max-height: 100%;
   height: auto;
+  width: auto;
 }
 
 .canvas-placeholder {
@@ -548,8 +552,13 @@ button:disabled:hover {
     overflow: visible;
   }
 
+  .canvas-panel {
+    height: auto;
+  }
+
   .canvas-stage {
     min-height: 420px;
+    height: auto;
   }
 }
 
