@@ -123,3 +123,36 @@ Then open [http://localhost:8080](http://localhost:8080).
 - Repository is published on GitHub
 - Hosted with GitHub Pages
 - Live URL: [https://agpathak.github.io/PaintersRef_v5.2/](https://agpathak.github.io/PaintersRef_v5.2/)
+
+## Version 2 Roadmap
+
+This prototype now has a solid painter-first structure. The next version should focus on refinement through real use rather than adding many new tools.
+
+### Priority Areas
+
+- `Squint redesign`
+  Continue refining squint so smaller details disappear more naturally and larger value masses merge in a more perceptual way.
+- `Outline simplification`
+  Replace technical outline controls with a more painter-facing `Simplify` control.
+- `Mirror workflow`
+  Likely move mirror to `Baseline` as a toggle between original and mirrored reference. If the mirrored version is chosen there, later stages can work from that mirrored reference consistently.
+- `Export refinement`
+  Improve `Export Current View` naming and consider later options such as export format choices or grid inclusion choices.
+- `UI polish from actual use`
+  Tighten labels, spacing, helper text, and control organization based on real painting sessions.
+
+### Secondary Improvements
+
+- `Reset Current Stage`
+  Add a quick way to return one stage to sensible defaults.
+- `Preset memory`
+  Remember recent settings during a session.
+- `Focal study evolution`
+  Consider expanding from one focal point study to multiple candidate focal studies if real use supports it.
+
+### What To Avoid
+
+- generic image-editing features
+- tool sprawl
+- Photoshop-like workflows
+- features that replace painter judgment instead of supporting it
