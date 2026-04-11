@@ -342,6 +342,11 @@ input[type="range"] {
   --stage-border: rgba(196, 134, 95, 0.34);
 }
 
+[data-stage-section="observation"] {
+  --stage-soft: rgba(239, 235, 220, 0.72);
+  --stage-border: rgba(170, 150, 102, 0.3);
+}
+
 [data-stage-section="drawing"] {
   --stage-soft: rgba(233, 240, 229, 0.72);
   --stage-border: rgba(123, 143, 118, 0.32);

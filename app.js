@@ -406,12 +406,14 @@ function createMirroredCanvasFromCanvas(sourceCanvas) {
   return outputCanvas;
 }
 
-function createSquintCanvasFromCanvas(sourceCanvas, options = {}) {
+function createSquintCanvasFromGrayscaleCanvas(sourceCanvas, options = {}) {
   const { softness = 35 } = options;
   const clampedSoftness = clamp(softness, 0, 100);
-  const totalPasses = (clampedSoftness / 100) * 4;
+  const totalPasses = (clampedSoftness / 100) * 5;
   const wholePasses = Math.floor(totalPasses);
   const blendAmount = totalPasses - wholePasses;
+  const normalized = clampedSoftness / 100;
+  const valueLevels = Math.round(12 - (normalized * 8));
 
   let baseCanvas = sourceCanvas;
   if (wholePasses > 0) {
@@ -429,6 +431,24 @@ function createSquintCanvasFromCanvas(sourceCanvas, options = {}) {
     outputCtx.drawImage(nextCanvas, 0, 0);
     outputCtx.restore();
   }
+
+  const imageData = outputCtx.getImageData(0, 0, outputCanvas.width, outputCanvas.height);
+  const { data } = imageData;
+  const safeLevels = clamp(valueLevels, 4, 12);
+  const maxStepIndex = safeLevels - 1;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const value = data[i] / 255;
+    const steppedValue = Math.round(value * maxStepIndex) / maxStepIndex;
+    const gray = Math.round(steppedValue * 255);
+
+    data[i] = gray;
+    data[i + 1] = gray;
+    data[i + 2] = gray;
+    data[i + 3] = 255;
+  }
+
+  outputCtx.putImageData(imageData, 0, 0);
 
   return outputCanvas;
 }
@@ -793,6 +813,7 @@ class PaintersReferenceApp {
       stageBodyElements: Array.from(document.querySelectorAll("[data-stage-body]")),
       baselineStageValue: document.getElementById("baselineStageValue"),
       compositionStageValue: document.getElementById("compositionStageValue"),
+      observationStageValue: document.getElementById("observationStageValue"),
       drawingStageValue: document.getElementById("drawingStageValue"),
       paintingStageValue: document.getElementById("paintingStageValue"),
       generalStageValue: document.getElementById("generalStageValue"),
@@ -828,10 +849,10 @@ class PaintersReferenceApp {
       stageSelections: {
         baseline: "original",
         composition: "focalStudy",
+        observation: "squint",
         drawing: "outlineSketch",
         painting: "grayscale"
       },
-      drawingSource: "outline",
       notan: {
         shadowCutoff: 85,
         lightCutoff: 170,
@@ -875,8 +896,8 @@ class PaintersReferenceApp {
     const stageByViewMode = {
       original: "baseline",
       focalStudy: "composition",
+      squint: "observation",
       outlineSketch: "drawing",
-      squint: "drawing",
       mirror: "drawing",
       grayscale: "painting",
       notan: "painting",
@@ -891,14 +912,6 @@ class PaintersReferenceApp {
   setViewMode(nextViewMode) {
     if (!nextViewMode) {
       return;
-    }
-
-    if (nextViewMode === "outlineSketch") {
-      this.state.drawingSource = "outline";
-      this.refreshSquintCanvas();
-    } else if (nextViewMode === "mirror") {
-      this.state.drawingSource = "mirror";
-      this.refreshSquintCanvas();
     }
 
     this.state.viewMode = nextViewMode;
@@ -1142,21 +1155,12 @@ class PaintersReferenceApp {
       mirror: "Mirror Check"
     };
 
-    if (this.state.viewMode === "squint" && this.state.drawingSource === "mirror") {
-      this.dom.viewModeText.textContent = "Squint (Mirror)";
-      return;
-    }
-
     this.dom.viewModeText.textContent = labels[this.state.viewMode] || "Original";
   }
 
   getDrawingViewLabel(viewMode = this.state.stageSelections.drawing) {
     if (viewMode === "outlineSketch") {
       return `Outline (${getOutlineDisplayLabel(this.state.outline)})`;
-    }
-
-    if (viewMode === "squint") {
-      return this.state.drawingSource === "mirror" ? "Squint (Mirror)" : "Squint";
     }
 
     if (viewMode === "mirror") {
@@ -1212,6 +1216,8 @@ class PaintersReferenceApp {
       labels[this.state.stageSelections.baseline] || "Original";
     this.dom.compositionStageValue.textContent =
       labels[this.state.stageSelections.composition] || "Focal Study";
+    this.dom.observationStageValue.textContent =
+      labels[this.state.stageSelections.observation] || "Squint";
     this.dom.drawingStageValue.textContent = this.getDrawingViewLabel();
     this.dom.paintingStageValue.textContent =
       labels[this.state.stageSelections.painting] || "Grayscale";
@@ -1226,7 +1232,7 @@ class PaintersReferenceApp {
     this.dom.outlineControlsSection.classList.toggle("is-hidden", !isOutlineActive);
 
     const isSquintActive =
-      this.state.activeStage === "drawing" && this.state.viewMode === "squint";
+      this.state.activeStage === "observation" && this.state.viewMode === "squint";
     this.dom.squintControlsSection.classList.toggle("is-hidden", !isSquintActive);
   }
 
@@ -1302,13 +1308,12 @@ class PaintersReferenceApp {
   }
 
   refreshSquintCanvas() {
-    const sourceCanvas = this.getCurrentSquintSourceCanvas();
-    if (!sourceCanvas) {
+    if (!this.state.processed.grayscaleCanvas) {
       return;
     }
 
-    this.state.processed.squintCanvas = createSquintCanvasFromCanvas(
-      sourceCanvas,
+    this.state.processed.squintCanvas = createSquintCanvasFromGrayscaleCanvas(
+      this.state.processed.grayscaleCanvas,
       this.state.squint
     );
   }
@@ -1326,14 +1331,6 @@ class PaintersReferenceApp {
   refreshDrawingDerivedCanvases() {
     this.refreshMirrorCanvas();
     this.refreshSquintCanvas();
-  }
-
-  getCurrentSquintSourceCanvas() {
-    if (this.state.drawingSource === "mirror") {
-      return this.state.processed.mirrorCanvas;
-    }
-
-    return this.state.processed.outlineSketchCanvas;
   }
 
   getSafeInteger(value, fallback, min, max) {
@@ -1359,7 +1356,6 @@ class PaintersReferenceApp {
       this.state.originalHeight = image.naturalHeight;
       this.state.loadedFileName = file.name;
       this.state.focalStudy.point = null;
-      this.state.drawingSource = "outline";
 
       this.prepareWorkingCanvases();
       this.renderScene();
@@ -1403,7 +1399,7 @@ class PaintersReferenceApp {
 
     const outlineSketchCanvas =
       createOutlineSketchCanvasFromGrayscaleCanvas(grayscaleCanvas, this.state.outline);
-    const squintCanvas = createSquintCanvasFromCanvas(outlineSketchCanvas, this.state.squint);
+    const squintCanvas = createSquintCanvasFromGrayscaleCanvas(grayscaleCanvas, this.state.squint);
     const mirrorCanvas = createMirroredCanvasFromCanvas(outlineSketchCanvas);
 
     this.state.processed.originalCanvas = originalCanvas;
