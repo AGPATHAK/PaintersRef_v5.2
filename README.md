@@ -130,6 +130,8 @@ This prototype now has a solid painter-first structure. The next version should 
 
 ### Priority Areas
 
+- `Composition rethink`
+  Rework `Focal Study` so a chosen point of interest generates four cropped composition options, placing that point near different intersections of a `3 x 3` grid. This may be more useful than the current emphasis-based approach.
 - `Squint redesign`
   Continue refining squint so smaller details disappear more naturally and larger value masses merge in a more perceptual way.
 - `Outline simplification`
@@ -149,6 +151,8 @@ This prototype now has a solid painter-first structure. The next version should 
   Remember recent settings during a session.
 - `Focal study evolution`
   Consider expanding from one focal point study to multiple candidate focal studies if real use supports it.
+- `Palette suggestions`
+  As a longer-term idea, explore restrained palette suggestions that support observation and mixing decisions without replacing painter judgment.
 
 ### What To Avoid
 
