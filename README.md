@@ -140,6 +140,10 @@ This prototype now has a solid painter-first structure. The next version should 
   Likely move mirror to `Baseline` as a toggle between original and mirrored reference. If the mirrored version is chosen there, later stages can work from that mirrored reference consistently.
 - `Export refinement`
   Improve `Export Current View` naming and consider later options such as export format choices or grid inclusion choices.
+- `Export preview / print preview`
+  Preview export sheets before downloading or printing so the painter can judge whether the selected studies are worth saving.
+- `Palette study`
+  Explore extracting a small dominant-color palette, such as five representative colors, and presenting it as a painter-friendly palette study rather than a fixed recipe.
 - `UI polish from actual use`
   Tighten labels, spacing, helper text, and control organization based on real painting sessions.
 
