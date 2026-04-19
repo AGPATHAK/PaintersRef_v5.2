@@ -212,6 +212,114 @@ function createTintedMaskCanvasFromGrayscaleCanvas(grayscaleCanvas, maskType) {
   return outputCanvas;
 }
 
+function rgbToHsl(r, g, b) {
+  const red = r / 255;
+  const green = g / 255;
+  const blue = b / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const delta = max - min;
+  const lightness = (max + min) / 2;
+
+  let hue = 0;
+  let saturation = 0;
+
+  if (delta !== 0) {
+    saturation = delta / (1 - Math.abs((2 * lightness) - 1));
+
+    switch (max) {
+      case red:
+        hue = 60 * (((green - blue) / delta) % 6);
+        break;
+      case green:
+        hue = 60 * (((blue - red) / delta) + 2);
+        break;
+      default:
+        hue = 60 * (((red - green) / delta) + 4);
+        break;
+    }
+  }
+
+  if (hue < 0) {
+    hue += 360;
+  }
+
+  return {
+    hue,
+    saturation: saturation * 100,
+    lightness: lightness * 100
+  };
+}
+
+function isWarmHue(hue, pivot = 140) {
+  const normalizedPivot = ((pivot % 360) + 360) % 360;
+  const warmStart = (normalizedPivot + 180) % 360;
+
+  if (warmStart < normalizedPivot) {
+    return hue >= warmStart && hue < normalizedPivot;
+  }
+
+  return hue >= warmStart || hue < normalizedPivot;
+}
+
+function createTemperatureMaskCanvasFromCanvas(sourceCanvas, maskType, options = {}) {
+  const {
+    neutralThreshold = 20,
+    pivot = 140
+  } = options;
+  const outputCanvas = createOffscreenCanvas(sourceCanvas.width, sourceCanvas.height);
+  const outputCtx = outputCanvas.getContext("2d", { willReadFrequently: true });
+  const imageData = outputCtx.createImageData(outputCanvas.width, outputCanvas.height);
+  const { data } = imageData;
+
+  const sourceCtx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+  const sourceData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height).data;
+
+  const activeTint = maskType === "warm" ? [188, 80, 70] : [70, 110, 185];
+  const inactiveTint = [240, 236, 229];
+  const safeNeutralThreshold = clamp(neutralThreshold, 0, 100);
+
+  for (let i = 0; i < sourceData.length; i += 4) {
+    const r = sourceData[i];
+    const g = sourceData[i + 1];
+    const b = sourceData[i + 2];
+    const gray = Math.round((0.299 * r) + (0.587 * g) + (0.114 * b));
+    const { hue, saturation } = rgbToHsl(r, g, b);
+
+    let isActive = false;
+
+    if (saturation >= safeNeutralThreshold) {
+      const warmHue = isWarmHue(hue, pivot);
+      isActive = maskType === "warm" ? warmHue : !warmHue;
+    }
+
+    if (isActive) {
+      const saturationRange = Math.max(1, 100 - safeNeutralThreshold);
+      const saturationStrength = clamp(
+        (saturation - safeNeutralThreshold) / saturationRange,
+        0,
+        1
+      );
+      const tintMix = 0.38 + (0.42 * saturationStrength);
+
+      data[i] = Math.round((gray * (1 - tintMix)) + (activeTint[0] * tintMix));
+      data[i + 1] = Math.round((gray * (1 - tintMix)) + (activeTint[1] * tintMix));
+      data[i + 2] = Math.round((gray * (1 - tintMix)) + (activeTint[2] * tintMix));
+      data[i + 3] = 255;
+      continue;
+    }
+
+    const inactiveMix = 0.84;
+    data[i] = Math.round((gray * (1 - inactiveMix)) + (inactiveTint[0] * inactiveMix));
+    data[i + 1] = Math.round((gray * (1 - inactiveMix)) + (inactiveTint[1] * inactiveMix));
+    data[i + 2] = Math.round((gray * (1 - inactiveMix)) + (inactiveTint[2] * inactiveMix));
+    data[i + 3] = 255;
+  }
+
+  outputCtx.putImageData(imageData, 0, 0);
+  return outputCanvas;
+}
+
 /* ---------------------------------
    Outline sketch processing
 --------------------------------- */
@@ -801,6 +909,11 @@ class PaintersReferenceApp {
       notanLightCutoffInput: document.getElementById("notanLightCutoffInput"),
       notanLightCutoffValue: document.getElementById("notanLightCutoffValue"),
       notanControlsSection: document.getElementById("notanControlsSection"),
+      temperatureControlsSection: document.getElementById("temperatureControlsSection"),
+      temperatureNeutralThresholdInput: document.getElementById("temperatureNeutralThresholdInput"),
+      temperatureNeutralThresholdValue: document.getElementById("temperatureNeutralThresholdValue"),
+      temperaturePivotInput: document.getElementById("temperaturePivotInput"),
+      temperaturePivotValue: document.getElementById("temperaturePivotValue"),
       resetNotanButton: document.getElementById("resetNotanButton"),
       focalRadiusInput: document.getElementById("focalRadiusInput"),
       focalRadiusValue: document.getElementById("focalRadiusValue"),
@@ -858,6 +971,10 @@ class PaintersReferenceApp {
         lightCutoff: 170,
         minimumGap: 10
       },
+      temperature: {
+        neutralThreshold: 20,
+        pivot: 140
+      },
       focalStudy: {
         point: null,
         radiusPercent: 18,
@@ -870,6 +987,8 @@ class PaintersReferenceApp {
         lightMaskCanvas: null,
         midtoneMaskCanvas: null,
         shadowMaskCanvas: null,
+        warmMaskCanvas: null,
+        coolMaskCanvas: null,
         outlineSketchCanvas: null,
         squintCanvas: null,
         mirrorCanvas: null
@@ -903,7 +1022,9 @@ class PaintersReferenceApp {
       notan: "painting",
       lightMask: "painting",
       midtoneMask: "painting",
-      shadowMask: "painting"
+      shadowMask: "painting",
+      warmMask: "painting",
+      coolMask: "painting"
     };
 
     return stageByViewMode[viewMode] || "baseline";
@@ -1012,6 +1133,30 @@ class PaintersReferenceApp {
       );
       this.refreshNotanCanvas();
       this.updateNotanControls();
+      this.renderScene();
+    });
+
+    this.dom.temperatureNeutralThresholdInput.addEventListener("input", () => {
+      this.state.temperature.neutralThreshold = this.getSafeInteger(
+        this.dom.temperatureNeutralThresholdInput.value,
+        20,
+        0,
+        60
+      );
+      this.refreshTemperatureCanvases();
+      this.updateTemperatureControls();
+      this.renderScene();
+    });
+
+    this.dom.temperaturePivotInput.addEventListener("input", () => {
+      this.state.temperature.pivot = this.getSafeInteger(
+        this.dom.temperaturePivotInput.value,
+        140,
+        100,
+        180
+      );
+      this.refreshTemperatureCanvases();
+      this.updateTemperatureControls();
       this.renderScene();
     });
 
@@ -1137,6 +1282,7 @@ class PaintersReferenceApp {
     this.updateOutlineControls();
     this.updateSquintControls();
     this.updateNotanControls();
+    this.updateTemperatureControls();
     this.updateFocalStudyControls();
     this.updateReferenceSection();
   }
@@ -1150,6 +1296,8 @@ class PaintersReferenceApp {
       lightMask: "Light Mask",
       midtoneMask: "Midtone Mask",
       shadowMask: "Shadow Mask",
+      warmMask: "Warm Mask",
+      coolMask: "Cool Mask",
       outlineSketch: "Rough Outline Sketch",
       squint: "Squint",
       mirror: "Mirror Check"
@@ -1209,7 +1357,9 @@ class PaintersReferenceApp {
       notan: "3-Value Notan",
       lightMask: "Light Mask",
       midtoneMask: "Midtone Mask",
-      shadowMask: "Shadow Mask"
+      shadowMask: "Shadow Mask",
+      warmMask: "Warm Mask",
+      coolMask: "Cool Mask"
     };
 
     this.dom.baselineStageValue.textContent =
@@ -1234,6 +1384,11 @@ class PaintersReferenceApp {
     const isSquintActive =
       this.state.activeStage === "observation" && this.state.viewMode === "squint";
     this.dom.squintControlsSection.classList.toggle("is-hidden", !isSquintActive);
+
+    const isTemperatureActive =
+      this.state.activeStage === "painting" &&
+      (this.state.viewMode === "warmMask" || this.state.viewMode === "coolMask");
+    this.dom.temperatureControlsSection.classList.toggle("is-hidden", !isTemperatureActive);
   }
 
   updateOutlineControls() {
@@ -1266,6 +1421,14 @@ class PaintersReferenceApp {
     this.dom.squintBlurValue.textContent = `${this.state.squint.softness}%`;
   }
 
+  updateTemperatureControls() {
+    this.dom.temperatureNeutralThresholdInput.value = this.state.temperature.neutralThreshold;
+    this.dom.temperatureNeutralThresholdValue.textContent =
+      `${this.state.temperature.neutralThreshold}%`;
+    this.dom.temperaturePivotInput.value = this.state.temperature.pivot;
+    this.dom.temperaturePivotValue.textContent = `${this.state.temperature.pivot}\u00b0`;
+  }
+
   updateFocalStudyControls() {
     this.dom.focalRadiusInput.value = this.state.focalStudy.radiusPercent;
     this.dom.focalRadiusValue.textContent = `${this.state.focalStudy.radiusPercent}%`;
@@ -1292,6 +1455,23 @@ class PaintersReferenceApp {
         shadowCutoff: this.state.notan.shadowCutoff,
         lightCutoff: this.state.notan.lightCutoff
       }
+    );
+  }
+
+  refreshTemperatureCanvases() {
+    if (!this.state.processed.originalCanvas) {
+      return;
+    }
+
+    this.state.processed.warmMaskCanvas = createTemperatureMaskCanvasFromCanvas(
+      this.state.processed.originalCanvas,
+      "warm",
+      this.state.temperature
+    );
+    this.state.processed.coolMaskCanvas = createTemperatureMaskCanvasFromCanvas(
+      this.state.processed.originalCanvas,
+      "cool",
+      this.state.temperature
     );
   }
 
@@ -1396,6 +1576,16 @@ class PaintersReferenceApp {
     const lightMaskCanvas = createTintedMaskCanvasFromGrayscaleCanvas(grayscaleCanvas, "light");
     const midtoneMaskCanvas = createTintedMaskCanvasFromGrayscaleCanvas(grayscaleCanvas, "midtone");
     const shadowMaskCanvas = createTintedMaskCanvasFromGrayscaleCanvas(grayscaleCanvas, "shadow");
+    const warmMaskCanvas = createTemperatureMaskCanvasFromCanvas(
+      originalCanvas,
+      "warm",
+      this.state.temperature
+    );
+    const coolMaskCanvas = createTemperatureMaskCanvasFromCanvas(
+      originalCanvas,
+      "cool",
+      this.state.temperature
+    );
 
     const outlineSketchCanvas =
       createOutlineSketchCanvasFromGrayscaleCanvas(grayscaleCanvas, this.state.outline);
@@ -1408,6 +1598,8 @@ class PaintersReferenceApp {
     this.state.processed.lightMaskCanvas = lightMaskCanvas;
     this.state.processed.midtoneMaskCanvas = midtoneMaskCanvas;
     this.state.processed.shadowMaskCanvas = shadowMaskCanvas;
+    this.state.processed.warmMaskCanvas = warmMaskCanvas;
+    this.state.processed.coolMaskCanvas = coolMaskCanvas;
     this.state.processed.outlineSketchCanvas = outlineSketchCanvas;
     this.state.processed.squintCanvas = squintCanvas;
     this.state.processed.mirrorCanvas = mirrorCanvas;
@@ -1429,6 +1621,8 @@ class PaintersReferenceApp {
       lightMask: this.state.processed.lightMaskCanvas,
       midtoneMask: this.state.processed.midtoneMaskCanvas,
       shadowMask: this.state.processed.shadowMaskCanvas,
+      warmMask: this.state.processed.warmMaskCanvas,
+      coolMask: this.state.processed.coolMaskCanvas,
       outlineSketch: this.getActiveOutlineCanvas(),
       squint: this.state.processed.squintCanvas,
       mirror: this.state.processed.mirrorCanvas

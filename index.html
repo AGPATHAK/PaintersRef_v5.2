@@ -251,6 +251,8 @@
               <button type="button" class="view-mode-button" data-view-mode="lightMask">Light Mask</button>
               <button type="button" class="view-mode-button" data-view-mode="midtoneMask">Midtone Mask</button>
               <button type="button" class="view-mode-button" data-view-mode="shadowMask">Shadow Mask</button>
+              <button type="button" class="view-mode-button" data-view-mode="warmMask">Warm Mask</button>
+              <button type="button" class="view-mode-button" data-view-mode="coolMask">Cool Mask</button>
             </div>
             <div id="notanControlsSection" class="mode-detail is-hidden">
               <div class="detail-header-row">
@@ -294,6 +296,52 @@
               </div>
               <p class="helper-text">
                 Standard split: shadow `85`, light `170`. Midtones stay between the two cutoffs.
+              </p>
+            </div>
+            <div id="temperatureControlsSection" class="mode-detail is-hidden">
+              <div class="detail-header-row">
+                <h3>Temperature Controls</h3>
+                <span class="detail-status-label">Warm / Cool Study</span>
+              </div>
+              <div class="form-grid simple-grid-controls">
+                <div class="field">
+                  <label for="temperatureNeutralThresholdInput">Neutral Threshold</label>
+                  <input
+                    id="temperatureNeutralThresholdInput"
+                    type="range"
+                    min="0"
+                    max="60"
+                    value="20"
+                    list="temperatureNeutralMarkers"
+                  />
+                  <datalist id="temperatureNeutralMarkers">
+                    <option value="12" label="Loose"></option>
+                    <option value="20" label="Standard"></option>
+                    <option value="32" label="Strict"></option>
+                  </datalist>
+                  <p id="temperatureNeutralThresholdValue" class="slider-value">20%</p>
+                </div>
+
+                <div class="field">
+                  <label for="temperaturePivotInput">Temperature Pivot</label>
+                  <input
+                    id="temperaturePivotInput"
+                    type="range"
+                    min="100"
+                    max="180"
+                    value="140"
+                    list="temperaturePivotMarkers"
+                  />
+                  <datalist id="temperaturePivotMarkers">
+                    <option value="120" label="Warmer"></option>
+                    <option value="140" label="Standard"></option>
+                    <option value="160" label="Cooler"></option>
+                  </datalist>
+                  <p id="temperaturePivotValue" class="slider-value">140°</p>
+                </div>
+              </div>
+              <p class="helper-text">
+                Warm and cool masks are a practical temperature study, not absolute color truth.
               </p>
             </div>
             <p class="helper-text">
