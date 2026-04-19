@@ -251,8 +251,7 @@
               <button type="button" class="view-mode-button" data-view-mode="lightMask">Light Mask</button>
               <button type="button" class="view-mode-button" data-view-mode="midtoneMask">Midtone Mask</button>
               <button type="button" class="view-mode-button" data-view-mode="shadowMask">Shadow Mask</button>
-              <button type="button" class="view-mode-button" data-view-mode="warmMask">Warm Mask</button>
-              <button type="button" class="view-mode-button" data-view-mode="coolMask">Cool Mask</button>
+              <button type="button" class="view-mode-button" data-view-mode="temperatureStudy">Temperature Study</button>
             </div>
             <div id="notanControlsSection" class="mode-detail is-hidden">
               <div class="detail-header-row">
@@ -305,7 +304,7 @@
               </div>
               <div class="form-grid simple-grid-controls">
                 <div class="field">
-                  <label for="temperatureNeutralThresholdInput">Neutral Threshold</label>
+                  <label for="temperatureNeutralThresholdInput">Ignore Neutrals</label>
                   <input
                     id="temperatureNeutralThresholdInput"
                     type="range"
@@ -323,7 +322,7 @@
                 </div>
 
                 <div class="field">
-                  <label for="temperaturePivotInput">Temperature Pivot</label>
+                  <label for="temperaturePivotInput">Warm/Cool Balance</label>
                   <input
                     id="temperaturePivotInput"
                     type="range"
@@ -352,7 +351,7 @@
 
         <section class="panel-section compact-section workflow-stage" data-stage-section="general">
           <button type="button" class="stage-toggle" data-stage-toggle="general">
-            <span class="stage-toggle-label">General</span>
+            <span class="stage-toggle-label">Exports</span>
             <span id="generalStageValue" class="stage-toggle-value">Exports</span>
           </button>
           <div class="stage-body" data-stage-body="general">
@@ -360,11 +359,13 @@
               <button id="exportCurrentViewButton" type="button">Export Current View</button>
               <button id="exportSheet1Button" type="button">Export Sheet 1</button>
               <button id="exportSheet2Button" type="button">Export Sheet 2</button>
+              <button id="exportSheet3Button" type="button">Export Sheet 3</button>
             </div>
             <p class="helper-text">
               Current View saves exactly what you are seeing on the canvas.<br />
               Sheet 1: Original, Grayscale, Notan, Outline.<br />
-              Sheet 2: Original, Light, Midtone, Shadow.
+              Sheet 2: Original, Light, Midtone, Shadow.<br />
+              Sheet 3: Original, Warm, Cool, Neutral.
             </p>
           </div>
         </section>

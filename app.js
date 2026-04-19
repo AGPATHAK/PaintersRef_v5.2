@@ -275,7 +275,11 @@ function createTemperatureMaskCanvasFromCanvas(sourceCanvas, maskType, options =
   const sourceCtx = sourceCanvas.getContext("2d", { willReadFrequently: true });
   const sourceData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height).data;
 
-  const activeTint = maskType === "warm" ? [188, 80, 70] : [70, 110, 185];
+  const activeTint = maskType === "warm"
+    ? [188, 80, 70]
+    : maskType === "cool"
+      ? [70, 110, 185]
+      : [154, 144, 132];
   const inactiveTint = [240, 236, 229];
   const safeNeutralThreshold = clamp(neutralThreshold, 0, 100);
 
@@ -290,7 +294,13 @@ function createTemperatureMaskCanvasFromCanvas(sourceCanvas, maskType, options =
 
     if (saturation >= safeNeutralThreshold) {
       const warmHue = isWarmHue(hue, pivot);
-      isActive = maskType === "warm" ? warmHue : !warmHue;
+      if (maskType === "warm") {
+        isActive = warmHue;
+      } else if (maskType === "cool") {
+        isActive = !warmHue;
+      }
+    } else if (maskType === "neutral") {
+      isActive = true;
     }
 
     if (isActive) {
@@ -937,6 +947,7 @@ class PaintersReferenceApp {
 
       exportSheet1Button: document.getElementById("exportSheet1Button"),
       exportSheet2Button: document.getElementById("exportSheet2Button"),
+      exportSheet3Button: document.getElementById("exportSheet3Button"),
       exportCurrentViewButton: document.getElementById("exportCurrentViewButton")
     };
 
@@ -989,6 +1000,7 @@ class PaintersReferenceApp {
         shadowMaskCanvas: null,
         warmMaskCanvas: null,
         coolMaskCanvas: null,
+        neutralMaskCanvas: null,
         outlineSketchCanvas: null,
         squintCanvas: null,
         mirrorCanvas: null
@@ -1023,8 +1035,7 @@ class PaintersReferenceApp {
       lightMask: "painting",
       midtoneMask: "painting",
       shadowMask: "painting",
-      warmMask: "painting",
-      coolMask: "painting"
+      temperatureStudy: "painting"
     };
 
     return stageByViewMode[viewMode] || "baseline";
@@ -1235,6 +1246,10 @@ class PaintersReferenceApp {
       this.exportSheet2();
     });
 
+    this.dom.exportSheet3Button.addEventListener("click", () => {
+      this.exportSheet3();
+    });
+
     this.dom.exportCurrentViewButton.addEventListener("click", () => {
       this.exportCurrentView();
     });
@@ -1296,8 +1311,7 @@ class PaintersReferenceApp {
       lightMask: "Light Mask",
       midtoneMask: "Midtone Mask",
       shadowMask: "Shadow Mask",
-      warmMask: "Warm Mask",
-      coolMask: "Cool Mask",
+      temperatureStudy: "Temperature Study",
       outlineSketch: "Rough Outline Sketch",
       squint: "Squint",
       mirror: "Mirror Check"
@@ -1358,8 +1372,7 @@ class PaintersReferenceApp {
       lightMask: "Light Mask",
       midtoneMask: "Midtone Mask",
       shadowMask: "Shadow Mask",
-      warmMask: "Warm Mask",
-      coolMask: "Cool Mask"
+      temperatureStudy: "Temperature Study"
     };
 
     this.dom.baselineStageValue.textContent =
@@ -1387,7 +1400,7 @@ class PaintersReferenceApp {
 
     const isTemperatureActive =
       this.state.activeStage === "painting" &&
-      (this.state.viewMode === "warmMask" || this.state.viewMode === "coolMask");
+      this.state.viewMode === "temperatureStudy";
     this.dom.temperatureControlsSection.classList.toggle("is-hidden", !isTemperatureActive);
   }
 
@@ -1471,6 +1484,11 @@ class PaintersReferenceApp {
     this.state.processed.coolMaskCanvas = createTemperatureMaskCanvasFromCanvas(
       this.state.processed.originalCanvas,
       "cool",
+      this.state.temperature
+    );
+    this.state.processed.neutralMaskCanvas = createTemperatureMaskCanvasFromCanvas(
+      this.state.processed.originalCanvas,
+      "neutral",
       this.state.temperature
     );
   }
@@ -1586,6 +1604,11 @@ class PaintersReferenceApp {
       "cool",
       this.state.temperature
     );
+    const neutralMaskCanvas = createTemperatureMaskCanvasFromCanvas(
+      originalCanvas,
+      "neutral",
+      this.state.temperature
+    );
 
     const outlineSketchCanvas =
       createOutlineSketchCanvasFromGrayscaleCanvas(grayscaleCanvas, this.state.outline);
@@ -1600,6 +1623,7 @@ class PaintersReferenceApp {
     this.state.processed.shadowMaskCanvas = shadowMaskCanvas;
     this.state.processed.warmMaskCanvas = warmMaskCanvas;
     this.state.processed.coolMaskCanvas = coolMaskCanvas;
+    this.state.processed.neutralMaskCanvas = neutralMaskCanvas;
     this.state.processed.outlineSketchCanvas = outlineSketchCanvas;
     this.state.processed.squintCanvas = squintCanvas;
     this.state.processed.mirrorCanvas = mirrorCanvas;
@@ -1621,8 +1645,6 @@ class PaintersReferenceApp {
       lightMask: this.state.processed.lightMaskCanvas,
       midtoneMask: this.state.processed.midtoneMaskCanvas,
       shadowMask: this.state.processed.shadowMaskCanvas,
-      warmMask: this.state.processed.warmMaskCanvas,
-      coolMask: this.state.processed.coolMaskCanvas,
       outlineSketch: this.getActiveOutlineCanvas(),
       squint: this.state.processed.squintCanvas,
       mirror: this.state.processed.mirrorCanvas
@@ -1785,9 +1807,67 @@ class PaintersReferenceApp {
     this.updateFocalStudyControls();
   }
 
+  renderTemperatureStudyScene() {
+    const warmCanvas = this.state.processed.warmMaskCanvas;
+    const coolCanvas = this.state.processed.coolMaskCanvas;
+    if (!warmCanvas || !coolCanvas) {
+      return;
+    }
+
+    const labelHeight = 38;
+    const margin = 24;
+    const gutter = 24;
+    const panelImageSize = computeContainSize(
+      warmCanvas.width,
+      warmCanvas.height,
+      620,
+      620
+    );
+    const panelWidth = panelImageSize.width;
+    const panelHeight = panelImageSize.height + labelHeight;
+    const canvasWidth = (margin * 2) + (panelWidth * 2) + gutter;
+    const canvasHeight = (margin * 2) + panelHeight;
+
+    setCanvasSize(this.dom.mainCanvas, canvasWidth, canvasHeight);
+    clearCanvas(this.ctx, this.dom.mainCanvas);
+
+    drawPanel(
+      this.ctx,
+      warmCanvas,
+      margin,
+      margin,
+      panelWidth,
+      panelHeight,
+      "Warm Mask",
+      { labelHeight }
+    );
+
+    drawPanel(
+      this.ctx,
+      coolCanvas,
+      margin + panelWidth + gutter,
+      margin,
+      panelWidth,
+      panelHeight,
+      "Cool Mask",
+      { labelHeight }
+    );
+
+    this.focalStudyLayout = null;
+    this.updateStatus("Temperature study ready");
+    this.updateInfo();
+    this.updateViewModeLabel();
+    this.updateOutlineDetailLabel();
+  }
+
   renderScene() {
     if (this.state.viewMode === "focalStudy") {
       this.renderFocalStudyScene();
+      return;
+    }
+
+    if (this.state.viewMode === "temperatureStudy") {
+      this.renderTemperatureStudyScene();
       return;
     }
 
@@ -1910,6 +1990,42 @@ class PaintersReferenceApp {
       "painters-ref-sheet-2.jpg",
       {
         title: "Painter's Reference Lab — Sheet 2"
+      }
+    );
+  }
+
+  exportSheet3() {
+    if (!this.state.processed.originalCanvas) {
+      alert("Please load an image before exporting.");
+      return;
+    }
+
+    createCompositeSheet(
+      [
+        {
+          label: "Original",
+          canvas: this.state.processed.originalCanvas,
+          showGrid: false
+        },
+        {
+          label: "Warm Mask",
+          canvas: this.state.processed.warmMaskCanvas,
+          showGrid: false
+        },
+        {
+          label: "Cool Mask",
+          canvas: this.state.processed.coolMaskCanvas,
+          showGrid: false
+        },
+        {
+          label: "Neutral Mask",
+          canvas: this.state.processed.neutralMaskCanvas,
+          showGrid: false
+        }
+      ],
+      "painters-ref-sheet-3.jpg",
+      {
+        title: "Painter's Reference Lab — Sheet 3"
       }
     );
   }
