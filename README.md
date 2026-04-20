@@ -31,11 +31,13 @@ GitHub Pages deployment:
   - Light mask
   - Midtone mask
   - Shadow mask
+  - Temperature study
+  - Palette notes
 - Lets you adjust outline sensitivity and smoothing
 - Lets you adjust 3-value notan thresholds
 - Adds a configurable grid with adjustable rows and columns
 - Exports the current view directly as a JPEG
-- Exports two composite study sheets as JPEG files
+- Exports composite study sheets as JPEG files
 - Works as a Progressive Web App (PWA) for installable, offline-friendly use
 
 ## Quick Use
@@ -46,7 +48,7 @@ GitHub Pages deployment:
    - `Composition`: choose a point of interest, keep the original or select one of four crop studies, and clear the selection when needed
    - `Observation`: use `Squint` to study large value masses
    - `Drawing`: use `Outline Sketch` and `Mirror Check`
-   - `Painting`: use grayscale, notan, and mask views
+   - `Painting`: use grayscale, notan, mask, temperature, and palette views
 4. Adjust sliders when needed:
    - focal-study crop size
    - squint softness
@@ -89,7 +91,7 @@ Because everything runs in the browser, your image stays local to your device wh
 - `Drawing`
   `Outline Sketch` supports block-in, and `Mirror Check` helps with structural checking.
 - `Painting`
-  Grayscale, notan, and value masks help simplify value relationships while painting.
+  Grayscale, notan, value masks, temperature study, and palette notes help simplify value and color relationships while painting.
 
 ## Local Development (Optional)
 

@@ -366,6 +366,163 @@ function createTemperatureMaskCanvasFromCanvas(sourceCanvas, maskType, options =
 }
 
 /* ---------------------------------
+   Palette study processing
+--------------------------------- */
+
+function componentToHex(value) {
+  return clamp(Math.round(value), 0, 255)
+    .toString(16)
+    .padStart(2, "0");
+}
+
+function rgbToHex(color) {
+  return `#${componentToHex(color.r)}${componentToHex(color.g)}${componentToHex(color.b)}`;
+}
+
+function getColorDistanceSquared(firstColor, secondColor) {
+  const redDelta = firstColor.r - secondColor.r;
+  const greenDelta = firstColor.g - secondColor.g;
+  const blueDelta = firstColor.b - secondColor.b;
+
+  return (redDelta * redDelta) + (greenDelta * greenDelta) + (blueDelta * blueDelta);
+}
+
+function extractDominantPaletteFromCanvas(sourceCanvas, options = {}) {
+  const {
+    colorCount = 5,
+    bucketSize = 24,
+    sampleBudget = 16000,
+    minimumDistance = 34
+  } = options;
+  const sourceCtx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+  const sourceData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height).data;
+  const sampleStep = Math.max(
+    1,
+    Math.floor(Math.sqrt((sourceCanvas.width * sourceCanvas.height) / sampleBudget))
+  );
+  const buckets = new Map();
+  let sampledPixels = 0;
+
+  for (let y = 0; y < sourceCanvas.height; y += sampleStep) {
+    for (let x = 0; x < sourceCanvas.width; x += sampleStep) {
+      const index = ((y * sourceCanvas.width) + x) * 4;
+      const alpha = sourceData[index + 3];
+      if (alpha < 128) {
+        continue;
+      }
+
+      const r = sourceData[index];
+      const g = sourceData[index + 1];
+      const b = sourceData[index + 2];
+      const key = [
+        Math.floor(r / bucketSize),
+        Math.floor(g / bucketSize),
+        Math.floor(b / bucketSize)
+      ].join("-");
+
+      const bucket = buckets.get(key) || {
+        count: 0,
+        r: 0,
+        g: 0,
+        b: 0
+      };
+
+      bucket.count += 1;
+      bucket.r += r;
+      bucket.g += g;
+      bucket.b += b;
+      buckets.set(key, bucket);
+      sampledPixels += 1;
+    }
+  }
+
+  if (sampledPixels === 0) {
+    return [];
+  }
+
+  const rankedColors = Array.from(buckets.values())
+    .map((bucket) => {
+      const color = {
+        r: Math.round(bucket.r / bucket.count),
+        g: Math.round(bucket.g / bucket.count),
+        b: Math.round(bucket.b / bucket.count)
+      };
+      const { saturation, lightness } = rgbToHsl(color.r, color.g, color.b);
+      const dominance = bucket.count / sampledPixels;
+
+      return {
+        ...color,
+        hex: rgbToHex(color),
+        dominance,
+        saturation,
+        lightness,
+        score: bucket.count * (0.72 + (saturation / 100) * 0.28)
+      };
+    })
+    .sort((firstColor, secondColor) => secondColor.score - firstColor.score);
+
+  const selectedColors = [];
+  const minimumDistanceSquared = minimumDistance * minimumDistance;
+
+  rankedColors.forEach((color) => {
+    if (selectedColors.length >= colorCount) {
+      return;
+    }
+
+    const isDistinct = selectedColors.every(
+      (selectedColor) => getColorDistanceSquared(color, selectedColor) >= minimumDistanceSquared
+    );
+
+    if (isDistinct) {
+      selectedColors.push(color);
+    }
+  });
+
+  if (selectedColors.length < colorCount) {
+    rankedColors.forEach((color) => {
+      if (selectedColors.length >= colorCount) {
+        return;
+      }
+
+      if (!selectedColors.includes(color)) {
+        selectedColors.push(color);
+      }
+    });
+  }
+
+  return selectedColors.sort((firstColor, secondColor) => firstColor.lightness - secondColor.lightness);
+}
+
+function createPaletteStudyCanvas(sourceCanvas, paletteColors) {
+  const safePalette = paletteColors.length > 0
+    ? paletteColors
+    : [{ r: 47, g: 42, b: 36, hex: "#2f2a24" }];
+  const swatchHeight = Math.round(clamp(sourceCanvas.height * 0.14, 92, 150));
+  const outputCanvas = createOffscreenCanvas(
+    sourceCanvas.width,
+    sourceCanvas.height + swatchHeight
+  );
+  const outputCtx = outputCanvas.getContext("2d");
+
+  outputCtx.fillStyle = "#ffffff";
+  outputCtx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+  outputCtx.drawImage(sourceCanvas, 0, 0);
+
+  const swatchY = sourceCanvas.height;
+  const swatchWidth = sourceCanvas.width / safePalette.length;
+
+  safePalette.forEach((color, index) => {
+    const x = Math.round(index * swatchWidth);
+    const nextX = Math.round((index + 1) * swatchWidth);
+
+    outputCtx.fillStyle = color.hex;
+    outputCtx.fillRect(x, swatchY, nextX - x, swatchHeight);
+  });
+
+  return outputCanvas;
+}
+
+/* ---------------------------------
    Outline sketch processing
 --------------------------------- */
 
@@ -1049,7 +1206,8 @@ class PaintersReferenceApp {
         neutralMaskCanvas: null,
         outlineSketchCanvas: null,
         squintCanvas: null,
-        mirrorCanvas: null
+        mirrorCanvas: null,
+        paletteColors: []
       },
       grid: {
         show: true,
@@ -1081,7 +1239,8 @@ class PaintersReferenceApp {
       lightMask: "painting",
       midtoneMask: "painting",
       shadowMask: "painting",
-      temperatureStudy: "painting"
+      temperatureStudy: "painting",
+      paletteStudy: "painting"
     };
 
     return stageByViewMode[viewMode] || "baseline";
@@ -1354,6 +1513,7 @@ class PaintersReferenceApp {
       midtoneMask: "Midtone Mask",
       shadowMask: "Shadow Mask",
       temperatureStudy: "Temperature Study",
+      paletteStudy: "Palette Notes",
       outlineSketch: "Rough Outline Sketch",
       squint: "Squint",
       mirror: "Mirror Check"
@@ -1418,7 +1578,8 @@ class PaintersReferenceApp {
       lightMask: "Light Mask",
       midtoneMask: "Midtone Mask",
       shadowMask: "Shadow Mask",
-      temperatureStudy: "Temperature Study"
+      temperatureStudy: "Temperature Study",
+      paletteStudy: "Palette Notes"
     };
 
     this.dom.baselineStageValue.textContent =
@@ -1615,6 +1776,9 @@ class PaintersReferenceApp {
       createOutlineSketchCanvasFromGrayscaleCanvas(grayscaleCanvas, this.state.outline);
     const squintCanvas = createSquintCanvasFromGrayscaleCanvas(grayscaleCanvas, this.state.squint);
     const mirrorCanvas = createMirroredCanvasFromCanvas(outlineSketchCanvas);
+    const paletteColors = extractDominantPaletteFromCanvas(originalCanvas, {
+      colorCount: 5
+    });
 
     this.state.processed.originalCanvas = originalCanvas;
     this.state.processed.grayscaleCanvas = grayscaleCanvas;
@@ -1628,6 +1792,7 @@ class PaintersReferenceApp {
     this.state.processed.outlineSketchCanvas = outlineSketchCanvas;
     this.state.processed.squintCanvas = squintCanvas;
     this.state.processed.mirrorCanvas = mirrorCanvas;
+    this.state.processed.paletteColors = paletteColors;
 
     this.state.workingCanvasWidth = originalCanvas.width;
     this.state.workingCanvasHeight = originalCanvas.height;
@@ -1778,7 +1943,8 @@ class PaintersReferenceApp {
       shadowMask: this.state.processed.shadowMaskCanvas,
       outlineSketch: this.getActiveOutlineCanvas(),
       squint: this.state.processed.squintCanvas,
-      mirror: this.state.processed.mirrorCanvas
+      mirror: this.state.processed.mirrorCanvas,
+      paletteStudy: this.state.processed.originalCanvas
     };
 
     return map[this.state.viewMode] || this.state.processed.originalCanvas;
@@ -2035,6 +2201,28 @@ class PaintersReferenceApp {
     this.updateOutlineDetailLabel();
   }
 
+  renderPaletteStudyScene() {
+    const originalCanvas = this.state.processed.originalCanvas;
+    if (!originalCanvas) {
+      return;
+    }
+
+    const paletteCanvas = createPaletteStudyCanvas(
+      originalCanvas,
+      this.state.processed.paletteColors
+    );
+
+    this.focalStudyLayout = null;
+    setCanvasSize(this.dom.mainCanvas, paletteCanvas.width, paletteCanvas.height);
+    clearCanvas(this.ctx, this.dom.mainCanvas);
+    this.ctx.drawImage(paletteCanvas, 0, 0);
+
+    this.updateStatus("Palette notes ready");
+    this.updateInfo();
+    this.updateViewModeLabel();
+    this.updateOutlineDetailLabel();
+  }
+
   renderScene() {
     if (this.state.viewMode === "focalStudy") {
       this.renderFocalStudyScene();
@@ -2043,6 +2231,11 @@ class PaintersReferenceApp {
 
     if (this.state.viewMode === "temperatureStudy") {
       this.renderTemperatureStudyScene();
+      return;
+    }
+
+    if (this.state.viewMode === "paletteStudy") {
+      this.renderPaletteStudyScene();
       return;
     }
 
