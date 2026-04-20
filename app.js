@@ -402,10 +402,15 @@ function getPaletteColorFamily(color) {
     ((hue >= 180 && hue <= 255) && saturation > 8) ||
     (color.b > color.r * 1.08 && color.b >= color.g * 0.9);
   const isRoseLeaning =
-    ((hue >= 300 || hue <= 20) && saturation > 18) ||
-    (color.r > color.g * 1.18 && color.b > color.g * 0.82);
+    (hue >= 305 || hue <= 8) &&
+    saturation > 20 &&
+    lightness > 24 &&
+    color.r > color.g * 1.12 &&
+    color.b > color.g * 1.02;
   const isEarthLeaning =
-    hue >= 22 && hue <= 70 && saturation > 8 && color.r >= color.b * 1.05;
+    ((hue >= 14 && hue <= 70) || hue >= 350) &&
+    saturation > 8 &&
+    color.r >= color.b * 1.02;
 
   if (isRoseLeaning) {
     return "rose";
@@ -457,9 +462,9 @@ function getSuggestedMixForFamily(family, color) {
       alternate: "cool shadows with Ultramarine"
     },
     rose: {
-      title: "Rose accent",
+      title: "Rose / crimson accent",
       mix: "Quinacridone Rose + Alizarin Crimson",
-      alternate: "dilute for lighter petals"
+      alternate: "dilute for lighter accents"
     },
     darkNeutral: {
       title: "Dark neutral",
