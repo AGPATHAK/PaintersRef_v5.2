@@ -142,8 +142,8 @@ This prototype now has a solid painter-first structure. The next version should 
   Improve `Export Current View` naming and consider later options such as export format choices or grid inclusion choices.
 - `Export preview / print preview`
   Preview export sheets before downloading or printing so the painter can judge whether the selected studies are worth saving.
-- `Palette study`
-  Explore extracting a small dominant-color palette, such as five representative colors, and presenting it as a painter-friendly palette study rather than a fixed recipe.
+- `Limited-palette pigment matching`
+  Explore extracting a small set of representative image colors, then matching them to the nearest anchors in a fixed painter's palette, such as warm/cool primaries, earth colors, and a green.
 - `UI polish from actual use`
   Tighten labels, spacing, helper text, and control organization based on real painting sessions.
 
@@ -155,8 +155,8 @@ This prototype now has a solid painter-first structure. The next version should 
   Remember recent settings during a session.
 - `Focal study evolution`
   Consider expanding from one focal point study to multiple candidate focal studies if real use supports it.
-- `Palette suggestions`
-  As a longer-term idea, explore restrained palette suggestions that support observation and mixing decisions without replacing painter judgment.
+- `Palette study display`
+  Show extracted image colors beside their nearest pigment anchors, making clear that these are starting points for mixing rather than exact paint recipes.
 
 ### What To Avoid
 
