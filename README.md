@@ -39,6 +39,7 @@ GitHub Pages deployment:
 - Lets you compare warm, cool, and neutral temperature masks
 - Generates palette notes with a few watercolor mix suggestions from sampled color families
 - Adds a configurable grid with adjustable rows and columns
+- Includes a light/dark interface toggle for different studio lighting conditions
 - Exports the current view directly as a JPEG
 - Exports composite study sheets as JPEG files
 - Works as a Progressive Web App (PWA) for installable, offline-friendly use
@@ -123,6 +124,7 @@ Then open [http://localhost:8080](http://localhost:8080).
 - `service-worker.js` caches the app shell for offline reuse
 - `icons/icon.svg` provides the app icon
 - The hosted GitHub Pages build is installable as a PWA in supported browsers
+- Theme preference is stored locally in the browser
 
 ## Project Files
 

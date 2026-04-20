@@ -1363,6 +1363,8 @@ class PaintersReferenceApp {
       referenceUploadBlock: document.getElementById("referenceUploadBlock"),
       referenceSummary: document.getElementById("referenceSummary"),
       referenceFileName: document.getElementById("referenceFileName"),
+      headerFileChip: document.getElementById("headerFileChip"),
+      themeToggleButton: document.getElementById("themeToggleButton"),
       changeImageButton: document.getElementById("changeImageButton"),
       mainCanvas: document.getElementById("mainCanvas"),
       canvasPlaceholder: document.getElementById("canvasPlaceholder"),
@@ -1419,6 +1421,7 @@ class PaintersReferenceApp {
     };
 
     this.ctx = this.dom.mainCanvas.getContext("2d", { alpha: false });
+    this.rangeInputs = Array.from(document.querySelectorAll('input[type="range"]'));
 
     this.state = {
       originalImage: null,
@@ -1492,9 +1495,48 @@ class PaintersReferenceApp {
     this.maxCanvasDimension = 1600;
     this.focalStudyLayout = null;
 
+    this.initializeTheme();
     this.bindEvents();
     this.initializeCanvas();
     this.syncControls();
+  }
+
+  initializeTheme() {
+    let savedTheme = "light";
+    try {
+      savedTheme = localStorage.getItem("painters-ref-theme") || "light";
+    } catch (error) {
+      savedTheme = "light";
+    }
+
+    this.applyTheme(savedTheme === "dark" ? "dark" : "light");
+  }
+
+  applyTheme(theme) {
+    const nextTheme = theme === "dark" ? "dark" : "light";
+    document.documentElement.dataset.theme = nextTheme;
+
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeColorMeta) {
+      themeColorMeta.setAttribute("content", nextTheme === "dark" ? "#1e1b17" : "#f0ede4");
+    }
+
+    if (this.dom.themeToggleButton) {
+      const isDark = nextTheme === "dark";
+      this.dom.themeToggleButton.textContent = isDark ? "Light" : "Dark";
+      this.dom.themeToggleButton.setAttribute("aria-pressed", isDark ? "true" : "false");
+    }
+
+    try {
+      localStorage.setItem("painters-ref-theme", nextTheme);
+    } catch (error) {
+      // Ignore storage failures; theme still applies for the current session.
+    }
+  }
+
+  toggleTheme() {
+    const currentTheme = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+    this.applyTheme(currentTheme === "dark" ? "light" : "dark");
   }
 
   getStageForViewMode(viewMode) {
@@ -1531,6 +1573,18 @@ class PaintersReferenceApp {
   }
 
   bindEvents() {
+    if (this.dom.themeToggleButton) {
+      this.dom.themeToggleButton.addEventListener("click", () => {
+        this.toggleTheme();
+      });
+    }
+
+    this.rangeInputs.forEach((input) => {
+      input.addEventListener("input", () => {
+        this.updateRangeFill(input);
+      });
+    });
+
     this.dom.imageInput.addEventListener("change", async (event) => {
       const [file] = event.target.files || [];
       if (!file) return;
@@ -1771,6 +1825,24 @@ class PaintersReferenceApp {
     this.updateTemperatureControls();
     this.updateFocalStudyControls();
     this.updateReferenceSection();
+    this.updateRangeFills();
+  }
+
+  updateRangeFill(input) {
+    const min = Number(input.min || 0);
+    const max = Number(input.max || 100);
+    const value = Number(input.value || min);
+    const progress = max > min
+      ? ((value - min) / (max - min)) * 100
+      : 0;
+
+    input.style.setProperty("--range-progress", `${Math.min(Math.max(progress, 0), 100)}%`);
+  }
+
+  updateRangeFills() {
+    this.rangeInputs.forEach((input) => {
+      this.updateRangeFill(input);
+    });
   }
 
   updateViewModeLabel() {
@@ -1896,6 +1968,7 @@ class PaintersReferenceApp {
       button.classList.toggle("is-active", isActive);
       button.setAttribute("aria-pressed", isActive ? "true" : "false");
     });
+    this.updateRangeFills();
   }
 
   updateNotanControls() {
@@ -1903,11 +1976,13 @@ class PaintersReferenceApp {
     this.dom.notanLightCutoffInput.value = this.state.notan.lightCutoff;
     this.dom.notanShadowCutoffValue.textContent = `${this.state.notan.shadowCutoff}`;
     this.dom.notanLightCutoffValue.textContent = `${this.state.notan.lightCutoff}`;
+    this.updateRangeFills();
   }
 
   updateSquintControls() {
     this.dom.squintBlurInput.value = this.state.squint.softness;
     this.dom.squintBlurValue.textContent = `${this.state.squint.softness}%`;
+    this.updateRangeFills();
   }
 
   updateTemperatureControls() {
@@ -1916,6 +1991,7 @@ class PaintersReferenceApp {
       `${this.state.temperature.neutralThreshold}%`;
     this.dom.temperaturePivotInput.value = this.state.temperature.pivot;
     this.dom.temperaturePivotValue.textContent = `${this.state.temperature.pivot}\u00b0`;
+    this.updateRangeFills();
   }
 
   updateFocalStudyControls() {
@@ -1928,6 +2004,7 @@ class PaintersReferenceApp {
       "is-active",
       this.state.compositionChoice.key === "original"
     );
+    this.updateRangeFills();
   }
 
   updateReferenceSection() {
@@ -1935,6 +2012,12 @@ class PaintersReferenceApp {
     this.dom.referenceUploadBlock.classList.toggle("is-hidden", hasLoadedImage);
     this.dom.referenceSummary.classList.toggle("is-hidden", !hasLoadedImage);
     this.dom.referenceFileName.textContent = this.state.loadedFileName || "None";
+    if (this.dom.headerFileChip) {
+      this.dom.headerFileChip.classList.toggle("is-hidden", !hasLoadedImage);
+      this.dom.headerFileChip.textContent = hasLoadedImage
+        ? `Loaded: ${this.state.loadedFileName}`
+        : "No image loaded";
+    }
   }
 
   refreshNotanCanvas() {
