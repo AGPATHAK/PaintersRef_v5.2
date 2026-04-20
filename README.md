@@ -43,12 +43,12 @@ GitHub Pages deployment:
 1. Open the live app.
 2. Load a JPG or PNG reference image.
 3. Move through the workflow stages on the left:
-   - `Composition`: choose a focal point with `Focal Study`
+   - `Composition`: choose a point of interest with `Focal Study`
    - `Observation`: use `Squint` to study large value masses
    - `Drawing`: use `Outline Sketch` and `Mirror Check`
    - `Painting`: use grayscale, notan, and mask views
 4. Adjust sliders when needed:
-   - focal radius and rest softness
+   - focal-study crop size
    - squint softness
    - outline sensitivity and smoothing
    - notan shadow and light cutoffs
@@ -83,7 +83,7 @@ Because everything runs in the browser, your image stays local to your device wh
 - `Baseline`
   Use the original image and optional grid as a neutral starting point.
 - `Composition`
-  `Focal Study` helps compare areas of interest before drawing begins.
+  `Focal Study` creates four rule-of-thirds crop options around a chosen point of interest.
 - `Observation`
   `Squint` simplifies the reference into broader value masses.
 - `Drawing`
@@ -130,8 +130,6 @@ This prototype now has a solid painter-first structure. The next version should 
 
 ### Priority Areas
 
-- `Composition rethink`
-  Rework `Focal Study` so a chosen point of interest generates four cropped composition options, placing that point near different intersections of a `3 x 3` grid. This may be more useful than the current emphasis-based approach.
 - `Squint redesign`
   Continue refining squint so smaller details disappear more naturally and larger value masses merge in a more perceptual way.
 - `Outline simplification`

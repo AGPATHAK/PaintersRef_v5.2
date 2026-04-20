@@ -776,111 +776,117 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-function createBlurredCanvas(sourceCanvas, blurAmount) {
-  const outputCanvas = createOffscreenCanvas(sourceCanvas.width, sourceCanvas.height);
-  const outputCtx = outputCanvas.getContext("2d");
-
-  outputCtx.filter = blurAmount > 0 ? `blur(${blurAmount}px)` : "none";
-  outputCtx.drawImage(sourceCanvas, 0, 0);
-  outputCtx.filter = "none";
-
-  return outputCanvas;
-}
-
-function createFocalStudyCanvas(sourceCanvas, focalPoint, options = {}) {
-  if (!sourceCanvas) {
-    return null;
-  }
-
-  if (!focalPoint) {
-    return sourceCanvas;
-  }
-
+function createCompositionCropCanvas(sourceCanvas, focalPoint, options = {}) {
   const {
-    radiusPercent = 18,
-    blurAmount = 12,
-    dimOpacity = 0.14
+    cropPercent = 72,
+    intersectionX = 1 / 3,
+    intersectionY = 1 / 3
   } = options;
+  const safeCropPercent = clamp(cropPercent, 55, 95);
+  const safeIntersectionX = clamp(intersectionX, 0.05, 0.95);
+  const safeIntersectionY = clamp(intersectionY, 0.05, 0.95);
+  const safeFocalPoint = {
+    x: clamp(focalPoint.x, 1, sourceCanvas.width - 1),
+    y: clamp(focalPoint.y, 1, sourceCanvas.height - 1)
+  };
+  const requestedScale = safeCropPercent / 100;
+  const horizontalScale = Math.min(
+    requestedScale,
+    safeFocalPoint.x / (sourceCanvas.width * safeIntersectionX),
+    (sourceCanvas.width - safeFocalPoint.x) / (sourceCanvas.width * (1 - safeIntersectionX))
+  );
+  const verticalScale = Math.min(
+    requestedScale,
+    safeFocalPoint.y / (sourceCanvas.height * safeIntersectionY),
+    (sourceCanvas.height - safeFocalPoint.y) / (sourceCanvas.height * (1 - safeIntersectionY))
+  );
+  const safeScale = Math.max(0.02, Math.min(horizontalScale, verticalScale, requestedScale));
+  const cropWidth = Math.max(1, Math.round(sourceCanvas.width * safeScale));
+  const cropHeight = Math.max(1, Math.round(sourceCanvas.height * safeScale));
+  const cropX = Math.round(clamp(
+    safeFocalPoint.x - (cropWidth * safeIntersectionX),
+    0,
+    sourceCanvas.width - cropWidth
+  ));
+  const cropY = Math.round(clamp(
+    safeFocalPoint.y - (cropHeight * safeIntersectionY),
+    0,
+    sourceCanvas.height - cropHeight
+  ));
 
-  const outputCanvas = createOffscreenCanvas(sourceCanvas.width, sourceCanvas.height);
+  const outputCanvas = createOffscreenCanvas(cropWidth, cropHeight);
   const outputCtx = outputCanvas.getContext("2d");
-  const blurredCanvas = createBlurredCanvas(sourceCanvas, blurAmount);
-
-  outputCtx.drawImage(blurredCanvas, 0, 0);
-
-  if (dimOpacity > 0) {
-    outputCtx.save();
-    outputCtx.fillStyle = `rgba(244, 241, 234, ${dimOpacity})`;
-    outputCtx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
-    outputCtx.restore();
-  }
-
-  const focusOverlayCanvas = createOffscreenCanvas(sourceCanvas.width, sourceCanvas.height);
-  const focusOverlayCtx = focusOverlayCanvas.getContext("2d");
-  focusOverlayCtx.drawImage(sourceCanvas, 0, 0);
-
-  const focusRadius = Math.max(
-    60,
-    Math.round(Math.min(sourceCanvas.width, sourceCanvas.height) * (radiusPercent / 100))
-  );
-  const innerRadius = Math.max(24, Math.round(focusRadius * 0.55));
-  const outerRadius = Math.max(innerRadius + 24, Math.round(focusRadius * 1.45));
-
-  const gradient = focusOverlayCtx.createRadialGradient(
-    focalPoint.x,
-    focalPoint.y,
-    innerRadius,
-    focalPoint.x,
-    focalPoint.y,
-    outerRadius
+  outputCtx.drawImage(
+    sourceCanvas,
+    cropX,
+    cropY,
+    cropWidth,
+    cropHeight,
+    0,
+    0,
+    cropWidth,
+    cropHeight
   );
 
-  gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
-  gradient.addColorStop(0.65, "rgba(0, 0, 0, 0.94)");
-  gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-
-  focusOverlayCtx.globalCompositeOperation = "destination-in";
-  focusOverlayCtx.fillStyle = gradient;
-  focusOverlayCtx.fillRect(0, 0, focusOverlayCanvas.width, focusOverlayCanvas.height);
-
-  outputCtx.drawImage(focusOverlayCanvas, 0, 0);
-
-  return outputCanvas;
+  return {
+    canvas: outputCanvas,
+    cropRect: {
+      x: cropX,
+      y: cropY,
+      width: cropWidth,
+      height: cropHeight
+    },
+    target: {
+      x: safeIntersectionX,
+      y: safeIntersectionY
+    }
+  };
 }
 
-function drawFocalMarker(ctx, imageRect, sourceCanvas, focalPoint, radiusPercent) {
-  if (!focalPoint || !sourceCanvas || !imageRect) {
+function drawThirdsOverlay(ctx, imageRect) {
+  ctx.save();
+  ctx.strokeStyle = "rgba(47, 42, 36, 0.36)";
+  ctx.lineWidth = 1.5;
+
+  for (let index = 1; index <= 2; index += 1) {
+    const x = imageRect.x + ((imageRect.width * index) / 3);
+    const y = imageRect.y + ((imageRect.height * index) / 3);
+
+    ctx.beginPath();
+    ctx.moveTo(x, imageRect.y);
+    ctx.lineTo(x, imageRect.y + imageRect.height);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(imageRect.x, y);
+    ctx.lineTo(imageRect.x + imageRect.width, y);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawCompositionPointMarker(ctx, imageRect, cropStudy, focalPoint) {
+  if (!cropStudy || !focalPoint) {
     return;
   }
 
-  const scale = Math.min(
-    imageRect.width / sourceCanvas.width,
-    imageRect.height / sourceCanvas.height
-  );
-  const centerX = imageRect.x + (focalPoint.x * scale);
-  const centerY = imageRect.y + (focalPoint.y * scale);
-  const sourceRadius = Math.min(sourceCanvas.width, sourceCanvas.height) * (radiusPercent / 100);
-  const displayRadius = Math.max(14, sourceRadius * scale);
+  const centerX = imageRect.x + (cropStudy.target.x * imageRect.width);
+  const centerY = imageRect.y + (cropStudy.target.y * imageRect.height);
 
   ctx.save();
-  ctx.strokeStyle = "rgba(203, 112, 55, 0.95)";
-  ctx.fillStyle = "rgba(203, 112, 55, 0.95)";
+  ctx.strokeStyle = "rgba(203, 112, 55, 0.96)";
+  ctx.fillStyle = "rgba(203, 112, 55, 0.96)";
   ctx.lineWidth = 2;
 
   ctx.beginPath();
-  ctx.arc(centerX, centerY, displayRadius, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, 4.5, 0, Math.PI * 2);
+  ctx.arc(centerX, centerY, 6, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.beginPath();
-  ctx.moveTo(centerX - 10, centerY);
-  ctx.lineTo(centerX + 10, centerY);
-  ctx.moveTo(centerX, centerY - 10);
-  ctx.lineTo(centerX, centerY + 10);
+  ctx.arc(centerX, centerY, 14, 0, Math.PI * 2);
   ctx.stroke();
+
   ctx.restore();
 }
 
@@ -927,8 +933,6 @@ class PaintersReferenceApp {
       resetNotanButton: document.getElementById("resetNotanButton"),
       focalRadiusInput: document.getElementById("focalRadiusInput"),
       focalRadiusValue: document.getElementById("focalRadiusValue"),
-      focalSoftnessInput: document.getElementById("focalSoftnessInput"),
-      focalSoftnessValue: document.getElementById("focalSoftnessValue"),
       clearFocalPointButton: document.getElementById("clearFocalPointButton"),
       viewModeButtons: Array.from(document.querySelectorAll("[data-view-mode]")),
       stageSections: Array.from(document.querySelectorAll("[data-stage-section]")),
@@ -988,8 +992,7 @@ class PaintersReferenceApp {
       },
       focalStudy: {
         point: null,
-        radiusPercent: 18,
-        blurAmount: 12
+        cropPercent: 72
       },
       processed: {
         originalCanvas: null,
@@ -1172,22 +1175,11 @@ class PaintersReferenceApp {
     });
 
     this.dom.focalRadiusInput.addEventListener("input", () => {
-      this.state.focalStudy.radiusPercent = this.getSafeInteger(
+      this.state.focalStudy.cropPercent = this.getSafeInteger(
         this.dom.focalRadiusInput.value,
-        18,
-        10,
-        35
-      );
-      this.updateFocalStudyControls();
-      this.renderScene();
-    });
-
-    this.dom.focalSoftnessInput.addEventListener("input", () => {
-      this.state.focalStudy.blurAmount = this.getSafeInteger(
-        this.dom.focalSoftnessInput.value,
-        12,
-        4,
-        24
+        72,
+        55,
+        95
       );
       this.updateFocalStudyControls();
       this.renderScene();
@@ -1443,10 +1435,8 @@ class PaintersReferenceApp {
   }
 
   updateFocalStudyControls() {
-    this.dom.focalRadiusInput.value = this.state.focalStudy.radiusPercent;
-    this.dom.focalRadiusValue.textContent = `${this.state.focalStudy.radiusPercent}%`;
-    this.dom.focalSoftnessInput.value = this.state.focalStudy.blurAmount;
-    this.dom.focalSoftnessValue.textContent = `${this.state.focalStudy.blurAmount} px`;
+    this.dom.focalRadiusInput.value = this.state.focalStudy.cropPercent;
+    this.dom.focalRadiusValue.textContent = `${this.state.focalStudy.cropPercent}%`;
     this.dom.clearFocalPointButton.disabled = !this.state.focalStudy.point;
   }
 
@@ -1723,83 +1713,132 @@ class PaintersReferenceApp {
       return;
     }
 
-    const studyCanvas = createFocalStudyCanvas(originalCanvas, this.state.focalStudy.point, {
-      radiusPercent: this.state.focalStudy.radiusPercent,
-      blurAmount: this.state.focalStudy.blurAmount
-    });
+    if (!this.state.focalStudy.point) {
+      const labelHeight = 62;
+      const margin = 24;
+      const panelImageSize = computeContainSize(
+        originalCanvas.width,
+        originalCanvas.height,
+        980,
+        680
+      );
+      const panelWidth = panelImageSize.width;
+      const panelHeight = panelImageSize.height + labelHeight;
+      const canvasWidth = (margin * 2) + panelWidth;
+      const canvasHeight = (margin * 2) + panelHeight;
 
-    const labelHeight = 62;
+      setCanvasSize(this.dom.mainCanvas, canvasWidth, canvasHeight);
+      clearCanvas(this.ctx, this.dom.mainCanvas);
+
+      const sourcePanelRect = drawPanel(
+        this.ctx,
+        originalCanvas,
+        margin,
+        margin,
+        panelWidth,
+        panelHeight,
+        "Original",
+        {
+          labelHeight,
+          sublabel: "Click image to place a point of interest"
+        }
+      );
+
+      this.focalStudyLayout = {
+        sourceImageRect: sourcePanelRect,
+        studyImageRect: null
+      };
+
+      this.updateStatus("Click the original image to set a point of interest");
+      this.updateInfo();
+      this.updateViewModeLabel();
+      this.updateOutlineDetailLabel();
+      this.updateFocalStudyControls();
+      return;
+    }
+
+    const cropStudies = [
+      {
+        label: "Upper Left Third",
+        intersectionX: 1 / 3,
+        intersectionY: 1 / 3
+      },
+      {
+        label: "Upper Right Third",
+        intersectionX: 2 / 3,
+        intersectionY: 1 / 3
+      },
+      {
+        label: "Lower Left Third",
+        intersectionX: 1 / 3,
+        intersectionY: 2 / 3
+      },
+      {
+        label: "Lower Right Third",
+        intersectionX: 2 / 3,
+        intersectionY: 2 / 3
+      }
+    ].map((study) => ({
+      ...study,
+      crop: createCompositionCropCanvas(originalCanvas, this.state.focalStudy.point, {
+        cropPercent: this.state.focalStudy.cropPercent,
+        intersectionX: study.intersectionX,
+        intersectionY: study.intersectionY
+      })
+    }));
+
+    const labelHeight = 38;
     const margin = 24;
     const gutter = 24;
     const panelImageSize = computeContainSize(
       originalCanvas.width,
       originalCanvas.height,
-      620,
-      620
+      560,
+      380
     );
     const panelWidth = panelImageSize.width;
     const panelHeight = panelImageSize.height + labelHeight;
     const canvasWidth = (margin * 2) + (panelWidth * 2) + gutter;
-    const canvasHeight = (margin * 2) + panelHeight;
+    const canvasHeight = (margin * 2) + (panelHeight * 2) + gutter;
 
     setCanvasSize(this.dom.mainCanvas, canvasWidth, canvasHeight);
     clearCanvas(this.ctx, this.dom.mainCanvas);
 
-    const sourcePanelRect = drawPanel(
-      this.ctx,
-      originalCanvas,
-      margin,
-      margin,
-      panelWidth,
-      panelHeight,
-      "Original",
-      {
-        labelHeight,
-        sublabel: "Click image to place or move focal point",
-        overlayDrawer: (ctx, imageRect) => {
-          drawFocalMarker(
-            ctx,
-            imageRect,
-            originalCanvas,
-            this.state.focalStudy.point,
-            this.state.focalStudy.radiusPercent
-          );
-        }
-      }
-    );
+    cropStudies.forEach((study, index) => {
+      const col = index % 2;
+      const row = Math.floor(index / 2);
+      const x = margin + (col * (panelWidth + gutter));
+      const y = margin + (row * (panelHeight + gutter));
 
-    const studyPanelRect = drawPanel(
-      this.ctx,
-      studyCanvas,
-      margin + panelWidth + gutter,
-      margin,
-      panelWidth,
-      panelHeight,
-      "Focal Study",
-      {
-        labelHeight,
-        overlayDrawer: (ctx, imageRect) => {
-          drawFocalMarker(
-            ctx,
-            imageRect,
-            originalCanvas,
-            this.state.focalStudy.point,
-            this.state.focalStudy.radiusPercent
-          );
+      drawPanel(
+        this.ctx,
+        study.crop.canvas,
+        x,
+        y,
+        panelWidth,
+        panelHeight,
+        study.label,
+        {
+          labelHeight,
+          overlayDrawer: (ctx, imageRect) => {
+            drawThirdsOverlay(ctx, imageRect);
+            drawCompositionPointMarker(
+              ctx,
+              imageRect,
+              study.crop,
+              this.state.focalStudy.point
+            );
+          }
         }
-      }
-    );
+      );
+    });
 
     this.focalStudyLayout = {
-      sourceImageRect: sourcePanelRect,
-      studyImageRect: studyPanelRect
+      sourceImageRect: null,
+      studyImageRect: null
     };
 
-    if (!this.state.focalStudy.point) {
-      this.updateStatus("Click the original image to set a focal point");
-    } else {
-      this.updateStatus("Focal study ready");
-    }
+    this.updateStatus("Composition crop study ready");
 
     this.updateInfo();
     this.updateViewModeLabel();

@@ -98,34 +98,20 @@
               <button type="button" class="view-mode-button" data-view-mode="focalStudy">Focal Study</button>
             </div>
             <div class="mode-detail">
-              <div class="form-grid simple-grid-controls">
-                <div class="field">
-                  <label for="focalRadiusInput">Focus Radius</label>
-                  <input
-                    id="focalRadiusInput"
-                    type="range"
-                    min="10"
-                    max="35"
-                    value="18"
-                  />
-                  <p id="focalRadiusValue" class="slider-value">18%</p>
-                </div>
-
-                <div class="field">
-                  <label for="focalSoftnessInput">Rest Softness</label>
-                  <input
-                    id="focalSoftnessInput"
-                    type="range"
-                    min="4"
-                    max="24"
-                    value="12"
-                  />
-                  <p id="focalSoftnessValue" class="slider-value">12 px</p>
-                </div>
+              <div class="field">
+                <label for="focalRadiusInput">Crop Size</label>
+                <input
+                  id="focalRadiusInput"
+                  type="range"
+                  min="55"
+                  max="95"
+                  value="72"
+                />
+                <p id="focalRadiusValue" class="slider-value">72%</p>
               </div>
               <button id="clearFocalPointButton" type="button">Clear Focal Point</button>
               <p class="helper-text">
-                Click the image to place a point of interest. The app switches to Focal Study automatically.
+                Click the image to place a point of interest. Focal Study creates four crop options around rule-of-thirds intersections.
               </p>
             </div>
           </div>
