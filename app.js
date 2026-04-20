@@ -9,6 +9,33 @@
 
 const SUPPORTED_TYPES = ["image/jpeg", "image/png"];
 
+const COMPOSITION_CROP_OPTIONS = [
+  {
+    key: "upperLeftThird",
+    label: "Upper Left Third",
+    intersectionX: 1 / 3,
+    intersectionY: 1 / 3
+  },
+  {
+    key: "upperRightThird",
+    label: "Upper Right Third",
+    intersectionX: 2 / 3,
+    intersectionY: 1 / 3
+  },
+  {
+    key: "lowerLeftThird",
+    label: "Lower Left Third",
+    intersectionX: 1 / 3,
+    intersectionY: 2 / 3
+  },
+  {
+    key: "lowerRightThird",
+    label: "Lower Right Third",
+    intersectionX: 2 / 3,
+    intersectionY: 2 / 3
+  }
+];
+
 function isSupportedImageFile(file) {
   return Boolean(file && SUPPORTED_TYPES.includes(file.type));
 }
@@ -100,6 +127,14 @@ function createOffscreenCanvas(width, height) {
   canvas.width = width;
   canvas.height = height;
   return canvas;
+}
+
+function cloneCanvas(sourceCanvas) {
+  const outputCanvas = createOffscreenCanvas(sourceCanvas.width, sourceCanvas.height);
+  const outputCtx = outputCanvas.getContext("2d");
+
+  outputCtx.drawImage(sourceCanvas, 0, 0);
+  return outputCanvas;
 }
 
 /* ---------------------------------
@@ -643,7 +678,8 @@ function drawPanel(ctx, panelCanvas, x, y, width, height, label, options = {}) {
     gridOptions = null,
     labelHeight = 38,
     overlayDrawer = null,
-    sublabel = ""
+    sublabel = "",
+    isSelected = false
   } = options;
 
   ctx.save();
@@ -677,8 +713,8 @@ function drawPanel(ctx, panelCanvas, x, y, width, height, label, options = {}) {
     });
   }
 
-  ctx.strokeStyle = "#d9d2c4";
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = isSelected ? "#9b7a4a" : "#d9d2c4";
+  ctx.lineWidth = isSelected ? 3 : 1;
   ctx.strokeRect(x, y, width, imageAreaHeight);
 
   ctx.fillStyle = "#2f2a24";
@@ -934,6 +970,7 @@ class PaintersReferenceApp {
       focalRadiusInput: document.getElementById("focalRadiusInput"),
       focalRadiusValue: document.getElementById("focalRadiusValue"),
       clearFocalPointButton: document.getElementById("clearFocalPointButton"),
+      useOriginalCompositionButton: document.getElementById("useOriginalCompositionButton"),
       viewModeButtons: Array.from(document.querySelectorAll("[data-view-mode]")),
       stageSections: Array.from(document.querySelectorAll("[data-stage-section]")),
       stageToggleButtons: Array.from(document.querySelectorAll("[data-stage-toggle]")),
@@ -994,7 +1031,13 @@ class PaintersReferenceApp {
         point: null,
         cropPercent: 72
       },
+      compositionChoice: {
+        key: "original",
+        label: "Original",
+        cropRect: null
+      },
       processed: {
+        referenceCanvas: null,
         originalCanvas: null,
         grayscaleCanvas: null,
         notanCanvas: null,
@@ -1181,6 +1224,12 @@ class PaintersReferenceApp {
         55,
         95
       );
+      if (this.state.compositionChoice.key !== "original") {
+        this.selectCompositionChoice(this.state.compositionChoice.key, {
+          skipRender: true,
+          silent: true
+        });
+      }
       this.updateFocalStudyControls();
       this.renderScene();
     });
@@ -1248,9 +1297,17 @@ class PaintersReferenceApp {
 
     this.dom.clearFocalPointButton.addEventListener("click", () => {
       this.state.focalStudy.point = null;
+      this.selectCompositionChoice("original", {
+        skipRender: true,
+        silent: true
+      });
       this.updateFocalStudyControls();
       this.updateStatus("Focal point cleared");
       this.renderScene();
+    });
+
+    this.dom.useOriginalCompositionButton.addEventListener("click", () => {
+      this.selectCompositionChoice("original");
     });
 
     this.dom.resetNotanButton.addEventListener("click", () => {
@@ -1324,6 +1381,10 @@ class PaintersReferenceApp {
     return "Outline";
   }
 
+  getCompositionChoiceLabel() {
+    return this.state.compositionChoice?.label || "Original";
+  }
+
   updateOutlineDetailLabel() {
     this.dom.outlineDetailText.textContent = getOutlineDisplayLabel(this.state.outline);
   }
@@ -1369,8 +1430,7 @@ class PaintersReferenceApp {
 
     this.dom.baselineStageValue.textContent =
       labels[this.state.stageSelections.baseline] || "Original";
-    this.dom.compositionStageValue.textContent =
-      labels[this.state.stageSelections.composition] || "Focal Study";
+    this.dom.compositionStageValue.textContent = this.getCompositionChoiceLabel();
     this.dom.observationStageValue.textContent =
       labels[this.state.stageSelections.observation] || "Squint";
     this.dom.drawingStageValue.textContent = this.getDrawingViewLabel();
@@ -1438,6 +1498,11 @@ class PaintersReferenceApp {
     this.dom.focalRadiusInput.value = this.state.focalStudy.cropPercent;
     this.dom.focalRadiusValue.textContent = `${this.state.focalStudy.cropPercent}%`;
     this.dom.clearFocalPointButton.disabled = !this.state.focalStudy.point;
+    this.dom.useOriginalCompositionButton.disabled = !this.state.processed.referenceCanvas;
+    this.dom.useOriginalCompositionButton.classList.toggle(
+      "is-active",
+      this.state.compositionChoice.key === "original"
+    );
   }
 
   updateReferenceSection() {
@@ -1521,6 +1586,115 @@ class PaintersReferenceApp {
     this.refreshSquintCanvas();
   }
 
+  rebuildWorkingCanvasesFromSource(sourceCanvas) {
+    if (!sourceCanvas) {
+      return;
+    }
+
+    const originalCanvas = cloneCanvas(sourceCanvas);
+    const grayscaleCanvas = createGrayscaleCanvasFromCanvas(originalCanvas);
+    const notanCanvas = createNotanCanvasFromGrayscaleCanvas(grayscaleCanvas, {
+      shadowCutoff: this.state.notan.shadowCutoff,
+      lightCutoff: this.state.notan.lightCutoff
+    });
+
+    const lightMaskCanvas = createTintedMaskCanvasFromGrayscaleCanvas(grayscaleCanvas, "light");
+    const midtoneMaskCanvas = createTintedMaskCanvasFromGrayscaleCanvas(grayscaleCanvas, "midtone");
+    const shadowMaskCanvas = createTintedMaskCanvasFromGrayscaleCanvas(grayscaleCanvas, "shadow");
+    const warmMaskCanvas = createTemperatureMaskCanvasFromCanvas(
+      originalCanvas,
+      "warm",
+      this.state.temperature
+    );
+    const coolMaskCanvas = createTemperatureMaskCanvasFromCanvas(
+      originalCanvas,
+      "cool",
+      this.state.temperature
+    );
+    const neutralMaskCanvas = createTemperatureMaskCanvasFromCanvas(
+      originalCanvas,
+      "neutral",
+      this.state.temperature
+    );
+
+    const outlineSketchCanvas =
+      createOutlineSketchCanvasFromGrayscaleCanvas(grayscaleCanvas, this.state.outline);
+    const squintCanvas = createSquintCanvasFromGrayscaleCanvas(grayscaleCanvas, this.state.squint);
+    const mirrorCanvas = createMirroredCanvasFromCanvas(outlineSketchCanvas);
+
+    this.state.processed.originalCanvas = originalCanvas;
+    this.state.processed.grayscaleCanvas = grayscaleCanvas;
+    this.state.processed.notanCanvas = notanCanvas;
+    this.state.processed.lightMaskCanvas = lightMaskCanvas;
+    this.state.processed.midtoneMaskCanvas = midtoneMaskCanvas;
+    this.state.processed.shadowMaskCanvas = shadowMaskCanvas;
+    this.state.processed.warmMaskCanvas = warmMaskCanvas;
+    this.state.processed.coolMaskCanvas = coolMaskCanvas;
+    this.state.processed.neutralMaskCanvas = neutralMaskCanvas;
+    this.state.processed.outlineSketchCanvas = outlineSketchCanvas;
+    this.state.processed.squintCanvas = squintCanvas;
+    this.state.processed.mirrorCanvas = mirrorCanvas;
+
+    this.state.workingCanvasWidth = originalCanvas.width;
+    this.state.workingCanvasHeight = originalCanvas.height;
+
+    const referenceCanvas = this.state.processed.referenceCanvas;
+    this.state.workingScale = referenceCanvas && this.state.originalWidth > 0
+      ? referenceCanvas.width / this.state.originalWidth
+      : 1;
+  }
+
+  selectCompositionChoice(choiceKey, options = {}) {
+    const {
+      skipRender = false,
+      silent = false
+    } = options;
+    const referenceCanvas = this.state.processed.referenceCanvas;
+    if (!referenceCanvas) {
+      return;
+    }
+
+    let nextChoice = {
+      key: "original",
+      label: "Original",
+      cropRect: null
+    };
+    let workingSourceCanvas = referenceCanvas;
+
+    if (choiceKey !== "original") {
+      const cropOption = COMPOSITION_CROP_OPTIONS.find((option) => option.key === choiceKey);
+      if (!cropOption || !this.state.focalStudy.point) {
+        return;
+      }
+
+      const cropStudy = createCompositionCropCanvas(referenceCanvas, this.state.focalStudy.point, {
+        cropPercent: this.state.focalStudy.cropPercent,
+        intersectionX: cropOption.intersectionX,
+        intersectionY: cropOption.intersectionY
+      });
+
+      nextChoice = {
+        key: cropOption.key,
+        label: cropOption.label,
+        cropRect: cropStudy.cropRect
+      };
+      workingSourceCanvas = cropStudy.canvas;
+    }
+
+    this.state.compositionChoice = nextChoice;
+    this.rebuildWorkingCanvasesFromSource(workingSourceCanvas);
+    this.updateFocalStudyControls();
+    this.updateStagePanels();
+
+    if (!silent) {
+      this.updateStatus(`${nextChoice.label} selected for later stages`);
+    }
+
+    if (!skipRender) {
+      this.renderScene();
+    }
+  }
+
   getSafeInteger(value, fallback, min, max) {
     const parsed = parseInt(value, 10);
     if (Number.isNaN(parsed)) return fallback;
@@ -1569,57 +1743,19 @@ class PaintersReferenceApp {
       this.maxCanvasDimension
     );
 
-    const originalCanvas = createOffscreenCanvas(contained.width, contained.height);
-    const originalCtx = originalCanvas.getContext("2d");
+    const referenceCanvas = createOffscreenCanvas(contained.width, contained.height);
+    const referenceCtx = referenceCanvas.getContext("2d");
 
-    clearCanvas(originalCtx, originalCanvas);
-    drawImageContained(originalCtx, image, originalCanvas);
+    clearCanvas(referenceCtx, referenceCanvas);
+    drawImageContained(referenceCtx, image, referenceCanvas);
 
-    const grayscaleCanvas = createGrayscaleCanvasFromCanvas(originalCanvas);
-    const notanCanvas = createNotanCanvasFromGrayscaleCanvas(grayscaleCanvas, {
-      shadowCutoff: this.state.notan.shadowCutoff,
-      lightCutoff: this.state.notan.lightCutoff
-    });
-
-    const lightMaskCanvas = createTintedMaskCanvasFromGrayscaleCanvas(grayscaleCanvas, "light");
-    const midtoneMaskCanvas = createTintedMaskCanvasFromGrayscaleCanvas(grayscaleCanvas, "midtone");
-    const shadowMaskCanvas = createTintedMaskCanvasFromGrayscaleCanvas(grayscaleCanvas, "shadow");
-    const warmMaskCanvas = createTemperatureMaskCanvasFromCanvas(
-      originalCanvas,
-      "warm",
-      this.state.temperature
-    );
-    const coolMaskCanvas = createTemperatureMaskCanvasFromCanvas(
-      originalCanvas,
-      "cool",
-      this.state.temperature
-    );
-    const neutralMaskCanvas = createTemperatureMaskCanvasFromCanvas(
-      originalCanvas,
-      "neutral",
-      this.state.temperature
-    );
-
-    const outlineSketchCanvas =
-      createOutlineSketchCanvasFromGrayscaleCanvas(grayscaleCanvas, this.state.outline);
-    const squintCanvas = createSquintCanvasFromGrayscaleCanvas(grayscaleCanvas, this.state.squint);
-    const mirrorCanvas = createMirroredCanvasFromCanvas(outlineSketchCanvas);
-
-    this.state.processed.originalCanvas = originalCanvas;
-    this.state.processed.grayscaleCanvas = grayscaleCanvas;
-    this.state.processed.notanCanvas = notanCanvas;
-    this.state.processed.lightMaskCanvas = lightMaskCanvas;
-    this.state.processed.midtoneMaskCanvas = midtoneMaskCanvas;
-    this.state.processed.shadowMaskCanvas = shadowMaskCanvas;
-    this.state.processed.warmMaskCanvas = warmMaskCanvas;
-    this.state.processed.coolMaskCanvas = coolMaskCanvas;
-    this.state.processed.neutralMaskCanvas = neutralMaskCanvas;
-    this.state.processed.outlineSketchCanvas = outlineSketchCanvas;
-    this.state.processed.squintCanvas = squintCanvas;
-    this.state.processed.mirrorCanvas = mirrorCanvas;
-
-    this.state.workingCanvasWidth = contained.width;
-    this.state.workingCanvasHeight = contained.height;
+    this.state.processed.referenceCanvas = referenceCanvas;
+    this.state.compositionChoice = {
+      key: "original",
+      label: "Original",
+      cropRect: null
+    };
+    this.rebuildWorkingCanvasesFromSource(referenceCanvas);
     this.state.workingScale = contained.scale;
   }
 
@@ -1644,7 +1780,7 @@ class PaintersReferenceApp {
   }
 
   handleMainCanvasClick(event) {
-    if (!this.state.processed.originalCanvas) {
+    if (!this.state.processed.referenceCanvas || this.state.viewMode !== "focalStudy") {
       return;
     }
 
@@ -1660,19 +1796,22 @@ class PaintersReferenceApp {
 
     let imageRect = null;
 
-    if (this.state.viewMode === "focalStudy") {
-      if (!this.focalStudyLayout || !this.focalStudyLayout.sourceImageRect) {
-        return;
-      }
-      imageRect = this.focalStudyLayout.sourceImageRect;
-    } else {
-      imageRect = {
-        x: 0,
-        y: 0,
-        width: this.dom.mainCanvas.width,
-        height: this.dom.mainCanvas.height
-      };
+    const selectedStudyPanel = this.focalStudyLayout?.studyPanels?.find((panel) => (
+      canvasX >= panel.panelRect.x &&
+      canvasX <= panel.panelRect.x + panel.panelRect.width &&
+      canvasY >= panel.panelRect.y &&
+      canvasY <= panel.panelRect.y + panel.panelRect.height
+    ));
+
+    if (selectedStudyPanel) {
+      this.selectCompositionChoice(selectedStudyPanel.key);
+      return;
     }
+
+    if (!this.focalStudyLayout || !this.focalStudyLayout.sourceImageRect) {
+      return;
+    }
+    imageRect = this.focalStudyLayout.sourceImageRect;
 
     const isInsideImage =
       canvasX >= imageRect.x &&
@@ -1685,22 +1824,14 @@ class PaintersReferenceApp {
     }
 
     const pointX =
-      ((canvasX - imageRect.x) / imageRect.width) * this.state.processed.originalCanvas.width;
+      ((canvasX - imageRect.x) / imageRect.width) * this.state.processed.referenceCanvas.width;
     const pointY =
-      ((canvasY - imageRect.y) / imageRect.height) * this.state.processed.originalCanvas.height;
+      ((canvasY - imageRect.y) / imageRect.height) * this.state.processed.referenceCanvas.height;
 
     this.state.focalStudy.point = {
-      x: clamp(pointX, 0, this.state.processed.originalCanvas.width),
-      y: clamp(pointY, 0, this.state.processed.originalCanvas.height)
+      x: clamp(pointX, 0, this.state.processed.referenceCanvas.width),
+      y: clamp(pointY, 0, this.state.processed.referenceCanvas.height)
     };
-
-    if (this.state.viewMode !== "focalStudy") {
-      this.state.stageSelections.composition = "focalStudy";
-      this.setViewMode("focalStudy");
-      this.updateFocalStudyControls();
-      this.updateStatus("Focal point selected");
-      return;
-    }
 
     this.updateFocalStudyControls();
     this.updateStatus("Focal point selected");
@@ -1708,8 +1839,8 @@ class PaintersReferenceApp {
   }
 
   renderFocalStudyScene() {
-    const originalCanvas = this.state.processed.originalCanvas;
-    if (!originalCanvas) {
+    const referenceCanvas = this.state.processed.referenceCanvas;
+    if (!referenceCanvas) {
       return;
     }
 
@@ -1717,8 +1848,8 @@ class PaintersReferenceApp {
       const labelHeight = 62;
       const margin = 24;
       const panelImageSize = computeContainSize(
-        originalCanvas.width,
-        originalCanvas.height,
+        referenceCanvas.width,
+        referenceCanvas.height,
         980,
         680
       );
@@ -1732,7 +1863,7 @@ class PaintersReferenceApp {
 
       const sourcePanelRect = drawPanel(
         this.ctx,
-        originalCanvas,
+        referenceCanvas,
         margin,
         margin,
         panelWidth,
@@ -1757,30 +1888,9 @@ class PaintersReferenceApp {
       return;
     }
 
-    const cropStudies = [
-      {
-        label: "Upper Left Third",
-        intersectionX: 1 / 3,
-        intersectionY: 1 / 3
-      },
-      {
-        label: "Upper Right Third",
-        intersectionX: 2 / 3,
-        intersectionY: 1 / 3
-      },
-      {
-        label: "Lower Left Third",
-        intersectionX: 1 / 3,
-        intersectionY: 2 / 3
-      },
-      {
-        label: "Lower Right Third",
-        intersectionX: 2 / 3,
-        intersectionY: 2 / 3
-      }
-    ].map((study) => ({
+    const cropStudies = COMPOSITION_CROP_OPTIONS.map((study) => ({
       ...study,
-      crop: createCompositionCropCanvas(originalCanvas, this.state.focalStudy.point, {
+      crop: createCompositionCropCanvas(referenceCanvas, this.state.focalStudy.point, {
         cropPercent: this.state.focalStudy.cropPercent,
         intersectionX: study.intersectionX,
         intersectionY: study.intersectionY
@@ -1791,8 +1901,8 @@ class PaintersReferenceApp {
     const margin = 24;
     const gutter = 24;
     const panelImageSize = computeContainSize(
-      originalCanvas.width,
-      originalCanvas.height,
+      referenceCanvas.width,
+      referenceCanvas.height,
       560,
       380
     );
@@ -1804,11 +1914,15 @@ class PaintersReferenceApp {
     setCanvasSize(this.dom.mainCanvas, canvasWidth, canvasHeight);
     clearCanvas(this.ctx, this.dom.mainCanvas);
 
+    const studyPanels = [];
+
     cropStudies.forEach((study, index) => {
       const col = index % 2;
       const row = Math.floor(index / 2);
       const x = margin + (col * (panelWidth + gutter));
       const y = margin + (row * (panelHeight + gutter));
+      const isSelected = this.state.compositionChoice.key === study.key;
+      const label = isSelected ? `${study.label} (Selected)` : study.label;
 
       drawPanel(
         this.ctx,
@@ -1817,9 +1931,10 @@ class PaintersReferenceApp {
         y,
         panelWidth,
         panelHeight,
-        study.label,
+        label,
         {
           labelHeight,
+          isSelected,
           overlayDrawer: (ctx, imageRect) => {
             drawThirdsOverlay(ctx, imageRect);
             drawCompositionPointMarker(
@@ -1831,14 +1946,30 @@ class PaintersReferenceApp {
           }
         }
       );
+
+      studyPanels.push({
+        key: study.key,
+        label: study.label,
+        panelRect: {
+          x,
+          y,
+          width: panelWidth,
+          height: panelHeight
+        }
+      });
     });
 
     this.focalStudyLayout = {
       sourceImageRect: null,
-      studyImageRect: null
+      studyImageRect: null,
+      studyPanels
     };
 
-    this.updateStatus("Composition crop study ready");
+    this.updateStatus(
+      this.state.compositionChoice.key === "original"
+        ? "Click a crop to select it, or keep Original for later stages"
+        : `${this.state.compositionChoice.label} selected for later stages`
+    );
 
     this.updateInfo();
     this.updateViewModeLabel();

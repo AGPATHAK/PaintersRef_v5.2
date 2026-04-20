@@ -462,6 +462,12 @@ button:disabled:hover {
   color: #4e3a1f;
 }
 
+.choice-button.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: #4e3a1f;
+}
+
 .export-actions {
   display: grid;
   gap: 8px;

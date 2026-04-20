@@ -43,7 +43,7 @@ GitHub Pages deployment:
 1. Open the live app.
 2. Load a JPG or PNG reference image.
 3. Move through the workflow stages on the left:
-   - `Composition`: choose a point of interest with `Focal Study`
+   - `Composition`: choose a point of interest, then keep the original or select one of four crop studies
    - `Observation`: use `Squint` to study large value masses
    - `Drawing`: use `Outline Sketch` and `Mirror Check`
    - `Painting`: use grayscale, notan, and mask views
@@ -83,7 +83,7 @@ Because everything runs in the browser, your image stays local to your device wh
 - `Baseline`
   Use the original image and optional grid as a neutral starting point.
 - `Composition`
-  `Focal Study` creates four rule-of-thirds crop options around a chosen point of interest.
+  `Focal Study` creates four rule-of-thirds crop options around a chosen point of interest. The selected crop, or the original image, becomes the working reference for later stages.
 - `Observation`
   `Squint` simplifies the reference into broader value masses.
 - `Drawing`
