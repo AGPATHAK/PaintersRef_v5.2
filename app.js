@@ -1296,14 +1296,7 @@ class PaintersReferenceApp {
     });
 
     this.dom.clearFocalPointButton.addEventListener("click", () => {
-      this.state.focalStudy.point = null;
-      this.selectCompositionChoice("original", {
-        skipRender: true,
-        silent: true
-      });
-      this.updateFocalStudyControls();
-      this.updateStatus("Focal point cleared");
-      this.renderScene();
+      this.clearCompositionSelection();
     });
 
     this.dom.useOriginalCompositionButton.addEventListener("click", () => {
@@ -1497,7 +1490,8 @@ class PaintersReferenceApp {
   updateFocalStudyControls() {
     this.dom.focalRadiusInput.value = this.state.focalStudy.cropPercent;
     this.dom.focalRadiusValue.textContent = `${this.state.focalStudy.cropPercent}%`;
-    this.dom.clearFocalPointButton.disabled = !this.state.focalStudy.point;
+    this.dom.clearFocalPointButton.disabled =
+      !this.state.focalStudy.point && this.state.compositionChoice.key === "original";
     this.dom.useOriginalCompositionButton.disabled = !this.state.processed.referenceCanvas;
     this.dom.useOriginalCompositionButton.classList.toggle(
       "is-active",
@@ -1693,6 +1687,17 @@ class PaintersReferenceApp {
     if (!skipRender) {
       this.renderScene();
     }
+  }
+
+  clearCompositionSelection() {
+    this.state.focalStudy.point = null;
+    this.selectCompositionChoice("original", {
+      skipRender: true,
+      silent: true
+    });
+    this.updateFocalStudyControls();
+    this.updateStatus("Composition selection cleared");
+    this.renderScene();
   }
 
   getSafeInteger(value, fallback, min, max) {

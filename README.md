@@ -43,7 +43,7 @@ GitHub Pages deployment:
 1. Open the live app.
 2. Load a JPG or PNG reference image.
 3. Move through the workflow stages on the left:
-   - `Composition`: choose a point of interest, then keep the original or select one of four crop studies
+   - `Composition`: choose a point of interest, keep the original or select one of four crop studies, and clear the selection when needed
    - `Observation`: use `Squint` to study large value masses
    - `Drawing`: use `Outline Sketch` and `Mirror Check`
    - `Painting`: use grayscale, notan, and mask views
