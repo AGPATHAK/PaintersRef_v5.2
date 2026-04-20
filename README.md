@@ -20,6 +20,7 @@ GitHub Pages deployment:
   - Observation
   - Drawing
   - Painting
+  - Exports
 - Switches between multiple study views:
   - Original
   - Focal study
@@ -35,6 +36,8 @@ GitHub Pages deployment:
   - Palette notes with watercolor-friendly mix suggestions
 - Lets you adjust outline sensitivity and smoothing
 - Lets you adjust 3-value notan thresholds
+- Lets you compare warm, cool, and neutral temperature masks
+- Generates palette notes with a few watercolor mix suggestions from sampled color families
 - Adds a configurable grid with adjustable rows and columns
 - Exports the current view directly as a JPEG
 - Exports composite study sheets as JPEG files
@@ -74,6 +77,13 @@ GitHub Pages deployment:
 - Midtone mask
 - Shadow mask
 
+`Sheet 3`
+
+- Original
+- Warm mask
+- Cool mask
+- Neutral mask
+
 ## Why It Is Useful
 
 This app is meant to reduce setup time for traditional painting studies. Instead of manually preparing several reference variations, you can generate value simplifications and drawing aids from one image in a single place.
@@ -92,6 +102,8 @@ Because everything runs in the browser, your image stays local to your device wh
   `Outline Sketch` supports block-in, and `Mirror Check` helps with structural checking.
 - `Painting`
   Grayscale, notan, value masks, temperature study, and palette notes help simplify value and color relationships while painting. Palette notes show extracted reference colors and a few watercolor mix suggestions from the largest sampled color families.
+- `Exports`
+  Export the current canvas view or prepared study sheets for printing, saving, or later studio reference.
 
 ## Local Development (Optional)
 
@@ -143,7 +155,7 @@ This prototype now has a solid painter-first structure. The next version should 
 - `Export preview / print preview`
   Preview export sheets before downloading or printing so the painter can judge whether the selected studies are worth saving.
 - `Palette notes refinement`
-  Refine the suggested watercolor palette and practical mixing reminders based on real painting use, without trying to prescribe exact pigment matches for every extracted color.
+  Refine the watercolor mix suggestion rules based on real painting use. Keep the notes conditional and painter-facing rather than trying to prescribe exact pigment matches for every extracted color.
 - `UI polish from actual use`
   Tighten labels, spacing, helper text, and control organization based on real painting sessions.
 
@@ -153,10 +165,10 @@ This prototype now has a solid painter-first structure. The next version should 
   Add a quick way to return one stage to sensible defaults.
 - `Preset memory`
   Remember recent settings during a session.
-- `Focal study evolution`
-  Consider expanding from one focal point study to multiple candidate focal studies if real use supports it.
-- `Palette study display`
-  Show extracted image colors beside their nearest pigment anchors, making clear that these are starting points for mixing rather than exact paint recipes.
+- `Composition export`
+  Consider exporting the selected composition study or all four focal-study crop options if that proves useful in practice.
+- `Palette notes export`
+  Consider adding palette notes to an export sheet once the mix suggestions feel reliable enough.
 
 ### What To Avoid
 

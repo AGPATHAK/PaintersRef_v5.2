@@ -1,10 +1,11 @@
 /**
  * Painter's Reference Lab
- * Phase 7: Composite Export + PWA
+ * Painter-first reference workflow for composition, observation, drawing, and painting studies.
  *
  * Adds:
- * - Export Sheet 1: Original / Grayscale / Notan / Outline (+ grid only on outline)
- * - Export Sheet 2: Original / Light Mask / Midtone Mask / Shadow Mask
+ * - Composition crop studies that can become the working reference
+ * - Squint, outline, notan, temperature, and palette-note views
+ * - Current-view export and prepared composite export sheets
  */
 
 const SUPPORTED_TYPES = ["image/jpeg", "image/png"];
