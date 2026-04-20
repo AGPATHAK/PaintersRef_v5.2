@@ -32,7 +32,7 @@ GitHub Pages deployment:
   - Midtone mask
   - Shadow mask
   - Temperature study
-  - Palette notes
+  - Palette notes with watercolor-friendly mix suggestions
 - Lets you adjust outline sensitivity and smoothing
 - Lets you adjust 3-value notan thresholds
 - Adds a configurable grid with adjustable rows and columns
@@ -91,7 +91,7 @@ Because everything runs in the browser, your image stays local to your device wh
 - `Drawing`
   `Outline Sketch` supports block-in, and `Mirror Check` helps with structural checking.
 - `Painting`
-  Grayscale, notan, value masks, temperature study, and palette notes help simplify value and color relationships while painting.
+  Grayscale, notan, value masks, temperature study, and palette notes help simplify value and color relationships while painting. Palette notes show extracted reference colors and a few watercolor mix suggestions from the largest sampled color families.
 
 ## Local Development (Optional)
 
@@ -142,8 +142,8 @@ This prototype now has a solid painter-first structure. The next version should 
   Improve `Export Current View` naming and consider later options such as export format choices or grid inclusion choices.
 - `Export preview / print preview`
   Preview export sheets before downloading or printing so the painter can judge whether the selected studies are worth saving.
-- `Limited-palette pigment matching`
-  Explore extracting a small set of representative image colors, then matching them to the nearest anchors in a fixed painter's palette, such as warm/cool primaries, earth colors, and a green.
+- `Palette notes refinement`
+  Refine the suggested watercolor palette and practical mixing reminders based on real painting use, without trying to prescribe exact pigment matches for every extracted color.
 - `UI polish from actual use`
   Tighten labels, spacing, helper text, and control organization based on real painting sessions.
 
