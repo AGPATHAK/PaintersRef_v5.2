@@ -1042,34 +1042,39 @@ function createSquintCanvasFromGrayscaleCanvas(sourceCanvas, options = {}) {
 --------------------------------- */
 
 function drawGridOverlay(ctx, canvas, options) {
-  const { rows, columns, color, lineThickness, opacity } = options;
+  const { rows, columns, lineThickness, opacity } = options;
 
   const cellWidth = canvas.width / columns;
   const cellHeight = canvas.height / rows;
 
-  ctx.save();
-  ctx.strokeStyle = color;
-  ctx.globalAlpha = opacity;
-  ctx.lineWidth = lineThickness;
+  const drawGridLines = (strokeStyle, strokeWidth, alpha) => {
+    ctx.save();
+    ctx.strokeStyle = strokeStyle;
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth = strokeWidth;
 
-  for (let col = 1; col < columns; col += 1) {
-    const x = col * cellWidth;
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, canvas.height);
-    ctx.stroke();
-  }
+    for (let col = 1; col < columns; col += 1) {
+      const x = col * cellWidth;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+    }
 
-  for (let row = 1; row < rows; row += 1) {
-    const y = row * cellHeight;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(canvas.width, y);
-    ctx.stroke();
-  }
+    for (let row = 1; row < rows; row += 1) {
+      const y = row * cellHeight;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
 
-  ctx.strokeRect(0, 0, canvas.width, canvas.height);
-  ctx.restore();
+    ctx.strokeRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  };
+
+  drawGridLines("#ffffff", lineThickness + 2, opacity * 0.78);
+  drawGridLines("#111111", lineThickness, opacity * 0.82);
 }
 
 /* ---------------------------------
@@ -1402,6 +1407,8 @@ class PaintersReferenceApp {
       resetNotanButton: document.getElementById("resetNotanButton"),
       focalRadiusInput: document.getElementById("focalRadiusInput"),
       focalRadiusValue: document.getElementById("focalRadiusValue"),
+      compositionCropControls: document.getElementById("compositionCropControls"),
+      focalStudyInstructionText: document.getElementById("focalStudyInstructionText"),
       clearFocalPointButton: document.getElementById("clearFocalPointButton"),
       useOriginalCompositionButton: document.getElementById("useOriginalCompositionButton"),
       viewModeButtons: Array.from(document.querySelectorAll("[data-view-mode]")),
@@ -1787,9 +1794,11 @@ class PaintersReferenceApp {
       this.clearCompositionSelection();
     });
 
-    this.dom.useOriginalCompositionButton.addEventListener("click", () => {
-      this.selectCompositionChoice("original");
-    });
+    if (this.dom.useOriginalCompositionButton) {
+      this.dom.useOriginalCompositionButton.addEventListener("click", () => {
+        this.selectCompositionChoice("original");
+      });
+    }
 
     this.dom.resetNotanButton.addEventListener("click", () => {
       this.state.notan.shadowCutoff = 85;
@@ -2000,15 +2009,26 @@ class PaintersReferenceApp {
   }
 
   updateFocalStudyControls() {
+    const hasFocalPoint = Boolean(this.state.focalStudy.point);
     this.dom.focalRadiusInput.value = this.state.focalStudy.cropPercent;
     this.dom.focalRadiusValue.textContent = `${this.state.focalStudy.cropPercent}%`;
     this.dom.clearFocalPointButton.disabled =
-      !this.state.focalStudy.point && this.state.compositionChoice.key === "original";
-    this.dom.useOriginalCompositionButton.disabled = !this.state.processed.referenceCanvas;
-    this.dom.useOriginalCompositionButton.classList.toggle(
-      "is-active",
-      this.state.compositionChoice.key === "original"
-    );
+      !hasFocalPoint && this.state.compositionChoice.key === "original";
+    if (this.dom.compositionCropControls) {
+      this.dom.compositionCropControls.classList.toggle("is-hidden", !hasFocalPoint);
+    }
+    if (this.dom.focalStudyInstructionText) {
+      this.dom.focalStudyInstructionText.textContent = hasFocalPoint
+        ? "Click a crop to use it for later stages. Clear Selection returns to the original."
+        : "Click the image to place a point of interest.";
+    }
+    if (this.dom.useOriginalCompositionButton) {
+      this.dom.useOriginalCompositionButton.disabled = !this.state.processed.referenceCanvas;
+      this.dom.useOriginalCompositionButton.classList.toggle(
+        "is-active",
+        this.state.compositionChoice.key === "original"
+      );
+    }
     this.updateRangeFills();
   }
 
@@ -2498,7 +2518,7 @@ class PaintersReferenceApp {
 
     this.updateStatus(
       this.state.compositionChoice.key === "original"
-        ? "Click a crop to select it, or keep Original for later stages"
+        ? "Click a crop to use it for later stages. Clear Selection returns to the original."
         : `${this.state.compositionChoice.label} selected for later stages`
     );
 

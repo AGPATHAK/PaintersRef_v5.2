@@ -7,7 +7,7 @@
   --border: #d4cfc4;
   --border-strong: #bfb6a8;
   --text-primary: #2c2822;
-  --text-secondary: #7a7268;
+  --text-secondary: #655d54;
   --accent: #8b6f47;
   --accent-light: #c4a882;
   --accent-soft: #eadcc5;
@@ -34,7 +34,7 @@
   --border: #4c4237;
   --border-strong: #675a4b;
   --text-primary: #f1eadf;
-  --text-secondary: #b8aa99;
+  --text-secondary: #c7b9aa;
   --accent: #c4a882;
   --accent-light: #8b6f47;
   --accent-soft: #3d3226;
@@ -480,6 +480,20 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .mode-detail.is-hidden {
+  display: none;
+}
+
+.composition-crop-controls.is-hidden {
+  display: none;
+}
+
+#outlineControlsSection .simple-grid-controls,
+#temperatureControlsSection .simple-grid-controls {
+  grid-template-columns: 1fr;
+}
+
+#outlineControlsSection .slider-value,
+#temperatureControlsSection .slider-value {
   display: none;
 }
 

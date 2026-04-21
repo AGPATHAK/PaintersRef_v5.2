@@ -75,9 +75,6 @@
             <span id="baselineStageValue" class="stage-toggle-value">Original</span>
           </button>
           <div class="stage-body" data-stage-body="baseline">
-            <div class="view-mode-grid view-mode-grid--single">
-              <button type="button" class="view-mode-button" data-view-mode="original">Original</button>
-            </div>
             <div class="control-cluster">
               <div class="grid-row-top">
                 <h3>Grid</h3>
@@ -99,9 +96,6 @@
                 </div>
               </div>
             </div>
-            <p class="helper-text">
-              Use the original reference and optional grid as a neutral starting point.
-            </p>
           </div>
         </section>
 
@@ -115,21 +109,22 @@
               <button type="button" class="view-mode-button" data-view-mode="focalStudy">Focal Study</button>
             </div>
             <div class="mode-detail">
-              <div class="field">
-                <label for="focalRadiusInput">Crop Size</label>
-                <input
-                  id="focalRadiusInput"
-                  type="range"
-                  min="55"
-                  max="95"
-                  value="72"
-                />
-                <p id="focalRadiusValue" class="slider-value">72%</p>
+              <div id="compositionCropControls" class="composition-crop-controls is-hidden">
+                <div class="field">
+                  <label for="focalRadiusInput">Crop Size</label>
+                  <input
+                    id="focalRadiusInput"
+                    type="range"
+                    min="55"
+                    max="95"
+                    value="72"
+                  />
+                  <p id="focalRadiusValue" class="slider-value">72%</p>
+                </div>
               </div>
               <button id="clearFocalPointButton" type="button">Clear Selection</button>
-              <button id="useOriginalCompositionButton" class="choice-button" type="button">Use Original</button>
-              <p class="helper-text">
-                Click the image to place a point of interest. Then click a crop to use it for later stages, or keep the original.
+              <p id="focalStudyInstructionText" class="helper-text">
+                Click the image to place a point of interest.
               </p>
             </div>
           </div>
@@ -233,9 +228,6 @@
                   <p id="outlineSmoothingValue" class="slider-value">1 pass</p>
                 </div>
               </div>
-              <p class="helper-text">
-                Standard anchors: Low `30/2`, Medium `60/1`, High `90/0`.
-              </p>
             </div>
             <p class="helper-text">
               Use Outline and Mirror Check to support block-in and proportion checks.

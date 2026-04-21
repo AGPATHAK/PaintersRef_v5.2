@@ -169,8 +169,17 @@ This prototype now has a solid painter-first structure. The next version should 
   Remember recent settings during a session.
 - `Composition export`
   Consider exporting the selected composition study or all four focal-study crop options if that proves useful in practice.
+
+### Design Judgment / Low Priority Backlog
+
+- `Composition crop edge behavior`
+  Review whether adaptive crop shrinking near image edges feels intuitive enough, or whether the UI needs a clearer explanation.
+- `Color contrast audit`
+  Recheck text and control contrast in both light and dark themes after real studio use.
+- `Sidebar helper text audit`
+  Keep pruning repeated explanatory text where the controls are already self-explanatory.
 - `Palette notes export`
-  Consider adding palette notes to an export sheet once the mix suggestions feel reliable enough.
+  Decide whether palette notes should stay on-screen only or become a printable sheet after the mix suggestions feel reliable enough.
 
 ### What To Avoid
 
