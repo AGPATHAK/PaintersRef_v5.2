@@ -144,6 +144,7 @@ Future AI-assisted features are documented as an optional extension, not as a re
 - [Codex Implementation Notes](docs/codex-implementation-notes.md)
 - [UX Rules](docs/ux-rules.md)
 - [M1 Smoke Test](docs/m1-smoke-test.md)
+- [M1 Reference Screenshots](docs/m1-reference-screenshots.md)
 
 ## Deployment
 
