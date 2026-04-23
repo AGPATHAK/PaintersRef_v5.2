@@ -1,4 +1,4 @@
-const CACHE_NAME = "painters-reference-lab-v14";
+const CACHE_NAME = "painters-reference-lab-v17";
 const APP_ASSETS = [
   "./",
   "./index.html",
