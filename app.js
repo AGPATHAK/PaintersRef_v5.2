@@ -8,6 +8,22 @@
  * - Current-view export and prepared composite export sheets
  */
 
+/* ==================================================
+   Maintainer Map
+   ==================================================
+   M1 intentionally keeps this as a stable single-script app.
+   Previous module-loading experiments caused browser image-load regressions,
+   so preserve script order and extract only after smoke coverage improves.
+
+   High-risk flow:
+   image file -> reference canvas -> composition choice -> derived canvases
+   -> renderScene/export sheets.
+*/
+
+/* ==================================================
+   App Configuration / Constants
+   ================================================== */
+
 const SUPPORTED_TYPES = ["image/jpeg", "image/png"];
 
 const COMPOSITION_CROP_OPTIONS = [
@@ -37,6 +53,10 @@ const COMPOSITION_CROP_OPTIONS = [
   }
 ];
 
+/* ==================================================
+   Image Loading Helpers
+   ================================================== */
+
 function isSupportedImageFile(file) {
   return Boolean(file && SUPPORTED_TYPES.includes(file.type));
 }
@@ -63,6 +83,10 @@ async function fileToImageElement(file) {
   const dataUrl = await readFileAsDataURL(file);
   return createImageElement(dataUrl);
 }
+
+/* ==================================================
+   Core Canvas And Painting Transforms
+   ================================================== */
 
 /* ---------------------------------
    Canvas utilities
@@ -796,6 +820,10 @@ function createPaletteStudyCanvas(sourceCanvas, paletteColors, mixNotes = null) 
   return outputCanvas;
 }
 
+/* ==================================================
+   Drawing / Observation Transforms
+   ================================================== */
+
 /* ---------------------------------
    Outline sketch processing
 --------------------------------- */
@@ -1037,6 +1065,10 @@ function createSquintCanvasFromGrayscaleCanvas(sourceCanvas, options = {}) {
   return outputCanvas;
 }
 
+/* ==================================================
+   View Composition And Export Helpers
+   ================================================== */
+
 /* ---------------------------------
    Grid overlay utilities
 --------------------------------- */
@@ -1178,6 +1210,8 @@ function drawPanel(ctx, panelCanvas, x, y, width, height, label, options = {}) {
   };
 }
 
+// TODO(M2): isolate export builders after test harness exists.
+// Export sheets read directly from processed canvas state, so keep this stable in M1.
 function createCompositeSheet(panels, filename, options = {}) {
   const {
     title = "Painter's Reference Lab",
@@ -1248,6 +1282,8 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+// Focal crop output can become the working reference for later stages.
+// Keep this helper deterministic; controller state decides when it is used.
 function createCompositionCropCanvas(sourceCanvas, focalPoint, options = {}) {
   const {
     cropPercent = 72,
@@ -1362,9 +1398,9 @@ function drawCompositionPointMarker(ctx, imageRect, cropStudy, focalPoint) {
   ctx.restore();
 }
 
-/* ---------------------------------
-   App controller
---------------------------------- */
+/* ==================================================
+   App Controller / Runtime State
+   ================================================== */
 
 class PaintersReferenceApp {
   constructor() {
@@ -1435,6 +1471,8 @@ class PaintersReferenceApp {
     this.ctx = this.dom.mainCanvas.getContext("2d", { alpha: false });
     this.rangeInputs = Array.from(document.querySelectorAll('input[type="range"]'));
 
+    // TODO(M2): map state dependencies before file extraction.
+    // Composition, processed canvases, view mode, and exports are coupled here.
     this.state = {
       originalImage: null,
       originalWidth: 0,
@@ -1472,11 +1510,13 @@ class PaintersReferenceApp {
         point: null,
         cropPercent: 72
       },
+      // Selecting a composition crop replaces the working source used by later stages.
       compositionChoice: {
         key: "original",
         label: "Original",
         cropRect: null
       },
+      // Derived canvas cache. Rendering and export methods read directly from these fields.
       processed: {
         referenceCanvas: null,
         originalCanvas: null,
@@ -2119,6 +2159,7 @@ class PaintersReferenceApp {
     this.refreshSquintCanvas();
   }
 
+  // Central derived-canvas rebuild point. Original/crop selection flows through here.
   rebuildWorkingCanvasesFromSource(sourceCanvas) {
     if (!sourceCanvas) {
       return;
@@ -2183,6 +2224,7 @@ class PaintersReferenceApp {
       : 1;
   }
 
+  // Composition selection feeds later stages by rebuilding every derived canvas.
   selectCompositionChoice(choiceKey, options = {}) {
     const {
       skipRender = false,
@@ -2604,6 +2646,7 @@ class PaintersReferenceApp {
     this.updateOutlineDetailLabel();
   }
 
+  // Render router. Keep multi-panel views explicit until screenshots catch layout drift.
   renderScene() {
     if (this.state.viewMode === "focalStudy") {
       this.renderFocalStudyScene();
@@ -2652,6 +2695,7 @@ class PaintersReferenceApp {
     this.dom.statusText.textContent = message;
   }
 
+  // Export actions depend on the current render canvas and processed cache.
   exportCurrentView() {
     if (!this.state.processed.originalCanvas) {
       alert("Please load an image before exporting.");
@@ -2780,6 +2824,12 @@ class PaintersReferenceApp {
   }
 }
 
+/* ==================================================
+   Startup
+   ================================================== */
+
+// Service worker caching can keep stale app assets in the browser.
+// During M1, prefer hard refresh/cache clear before assuming a code regression.
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) {
     return;
