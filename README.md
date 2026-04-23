@@ -134,6 +134,16 @@ Then open [http://localhost:8080](http://localhost:8080).
 - `manifest.webmanifest` - PWA manifest
 - `service-worker.js` - offline caching
 
+## Planning Documents
+
+Future AI-assisted features are documented as an optional extension, not as a replacement for the current deterministic workflow.
+
+- [Master Project Document](docs/master-project-document.md)
+- [Source Doc Revisions](docs/source-doc-revisions.md)
+- [Feature Roadmap](docs/feature-roadmap.md)
+- [Codex Implementation Notes](docs/codex-implementation-notes.md)
+- [UX Rules](docs/ux-rules.md)
+
 ## Deployment
 
 - Repository is published on GitHub
