@@ -65,6 +65,11 @@ body {
   padding: 14px 18px 18px;
 }
 
+/* Shared utility for JS-controlled visibility toggles. */
+.is-hidden {
+  display: none !important;
+}
+
 .app-shell {
   max-width: 1680px;
   margin: 0 auto;
@@ -679,6 +684,12 @@ button:disabled:hover {
   gap: 8px;
 }
 
+#openSheetPreviewButton,
+#closeSheetPreviewButton {
+  background: transparent;
+  color: var(--accent);
+}
+
 #exportCurrentViewButton {
   background: var(--accent);
   color: #fffdf8;
@@ -689,6 +700,27 @@ button:disabled:hover {
 #exportSheet3Button {
   background: transparent;
   color: var(--accent);
+}
+
+#exportPreviewSheetButton {
+  background: var(--accent);
+  color: #fffdf8;
+}
+
+.sheet-preview-panel {
+  margin-top: 12px;
+}
+
+.sheet-preview-button.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fffdf8;
+}
+
+.sheet-preview-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .slider-value {

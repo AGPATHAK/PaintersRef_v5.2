@@ -348,17 +348,56 @@
 
         <section class="panel-section compact-section workflow-stage" data-stage-section="general">
           <button type="button" class="stage-toggle" data-stage-toggle="general">
-            <span class="stage-toggle-label">Exports</span>
-            <span id="generalStageValue" class="stage-toggle-value">Exports</span>
+            <span class="stage-toggle-label">Previews</span>
+            <span id="generalStageValue" class="stage-toggle-value">Previews</span>
           </button>
           <div class="stage-body" data-stage-body="general">
-            <div class="export-actions">
-              <button id="exportCurrentViewButton" type="button">Export Current View</button>
-              <button id="exportSheet1Button" type="button">Export Sheet 1</button>
-              <button id="exportSheet2Button" type="button">Export Sheet 2</button>
-              <button id="exportSheet3Button" type="button">Export Sheet 3</button>
+            <div id="sheetPreviewPanel" class="mode-detail sheet-preview-panel is-hidden">
+              <div class="detail-header-row">
+                <h3>Sheet Preview</h3>
+                <span id="sheetPreviewLabel" class="detail-status-label">Sheet 1</span>
+              </div>
+              <div class="preset-button-row">
+                <button
+                  id="sheetPreview1Button"
+                  type="button"
+                  class="secondary-button secondary-button--small sheet-preview-button"
+                  data-sheet-preview="sheet1"
+                >
+                  Sheet 1
+                </button>
+                <button
+                  id="sheetPreview2Button"
+                  type="button"
+                  class="secondary-button secondary-button--small sheet-preview-button"
+                  data-sheet-preview="sheet2"
+                >
+                  Sheet 2
+                </button>
+                <button
+                  id="sheetPreview3Button"
+                  type="button"
+                  class="secondary-button secondary-button--small sheet-preview-button"
+                  data-sheet-preview="sheet3"
+                >
+                  Sheet 3
+                </button>
+              </div>
+              <div class="sheet-preview-actions">
+                <button id="exportPreviewSheetButton" type="button">Export Current Sheet</button>
+                <button id="closeSheetPreviewButton" type="button" class="secondary-button">
+                  Close Preview
+                </button>
+              </div>
+              <p class="helper-text">
+                Preview the prepared reference sheets on the main canvas before exporting.
+              </p>
             </div>
-            <p class="helper-text">
+            <div id="generalActionPanel" class="export-actions">
+              <button id="openSheetPreviewButton" type="button" class="secondary-button">Previews</button>
+              <button id="exportCurrentViewButton" type="button">Export Current View</button>
+            </div>
+            <p id="generalPreviewHelpText" class="helper-text">
               Current View saves exactly what you are seeing on the canvas.<br />
               Sheet 1: Original, Grayscale, Notan, Outline.<br />
               Sheet 2: Original, Light, Midtone, Shadow.<br />
