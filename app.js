@@ -1221,7 +1221,8 @@ function createCompositeSheet(panels, filename, options = {}) {
     topTitleHeight = 60,
     bottomMargin = 40,
     labelHeight = 38,
-    panelAspectRatio = 0.75
+    panelAspectRatio = 0.75,
+    shouldDownload = true
   } = options;
 
   const columns = 2;
@@ -1257,7 +1258,11 @@ function createCompositeSheet(panels, filename, options = {}) {
     });
   });
 
-  downloadCanvas(sheetCanvas, filename, "image/jpeg", 0.92);
+  if (shouldDownload && filename) {
+    downloadCanvas(sheetCanvas, filename, "image/jpeg", 0.92);
+  }
+
+  return sheetCanvas;
 }
 
 function createExportFileStem(fileName) {
@@ -1462,10 +1467,15 @@ class PaintersReferenceApp {
       rowsInput: document.getElementById("rowsInput"),
       columnsInput: document.getElementById("columnsInput"),
 
-      exportSheet1Button: document.getElementById("exportSheet1Button"),
-      exportSheet2Button: document.getElementById("exportSheet2Button"),
-      exportSheet3Button: document.getElementById("exportSheet3Button"),
-      exportCurrentViewButton: document.getElementById("exportCurrentViewButton")
+      exportCurrentViewButton: document.getElementById("exportCurrentViewButton"),
+      openSheetPreviewButton: document.getElementById("openSheetPreviewButton"),
+      closeSheetPreviewButton: document.getElementById("closeSheetPreviewButton"),
+      exportPreviewSheetButton: document.getElementById("exportPreviewSheetButton"),
+      sheetPreviewPanel: document.getElementById("sheetPreviewPanel"),
+      sheetPreviewLabel: document.getElementById("sheetPreviewLabel"),
+      sheetPreviewButtons: Array.from(document.querySelectorAll("[data-sheet-preview]")),
+      generalActionPanel: document.getElementById("generalActionPanel"),
+      generalPreviewHelpText: document.getElementById("generalPreviewHelpText")
     };
 
     this.ctx = this.dom.mainCanvas.getContext("2d", { alpha: false });
@@ -1533,6 +1543,10 @@ class PaintersReferenceApp {
         mirrorCanvas: null,
         paletteColors: [],
         paletteMixNotes: []
+      },
+      studySheetPreview: {
+        isOpen: false,
+        activeSheet: "sheet1"
       },
       grid: {
         show: true,
@@ -1615,6 +1629,7 @@ class PaintersReferenceApp {
       return;
     }
 
+    this.state.studySheetPreview.isOpen = false;
     this.state.viewMode = nextViewMode;
     this.state.activeStage = this.getStageForViewMode(nextViewMode);
     this.state.stageSelections[this.state.activeStage] = nextViewMode;
@@ -1806,6 +1821,7 @@ class PaintersReferenceApp {
         if (stage === "general") {
           this.state.activeStage = "general";
           this.updateStagePanels();
+          this.renderScene();
           return;
         }
 
@@ -1814,20 +1830,41 @@ class PaintersReferenceApp {
       });
     });
 
-    this.dom.exportSheet1Button.addEventListener("click", () => {
-      this.exportSheet1();
-    });
-
-    this.dom.exportSheet2Button.addEventListener("click", () => {
-      this.exportSheet2();
-    });
-
-    this.dom.exportSheet3Button.addEventListener("click", () => {
-      this.exportSheet3();
-    });
-
     this.dom.exportCurrentViewButton.addEventListener("click", () => {
       this.exportCurrentView();
+    });
+
+    if (this.dom.openSheetPreviewButton) {
+      this.dom.openSheetPreviewButton.addEventListener("click", () => {
+        this.openStudySheetPreview();
+      });
+    }
+
+    if (this.dom.closeSheetPreviewButton) {
+      this.dom.closeSheetPreviewButton.addEventListener("click", () => {
+        this.closeStudySheetPreview();
+      });
+    }
+
+    if (this.dom.exportPreviewSheetButton) {
+      this.dom.exportPreviewSheetButton.addEventListener("click", () => {
+        this.exportActiveStudySheet();
+      });
+    }
+
+    this.dom.sheetPreviewButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const sheetKey = button.dataset.sheetPreview;
+        if (!sheetKey) {
+          return;
+        }
+
+        this.state.studySheetPreview.activeSheet = sheetKey;
+        this.updateStudySheetPreviewControls();
+        if (this.state.studySheetPreview.isOpen && this.state.activeStage === "general") {
+          this.renderScene();
+        }
+      });
     });
 
     this.dom.clearFocalPointButton.addEventListener("click", () => {
@@ -1878,6 +1915,7 @@ class PaintersReferenceApp {
     this.updateNotanControls();
     this.updateTemperatureControls();
     this.updateFocalStudyControls();
+    this.updateStudySheetPreviewControls();
     this.updateReferenceSection();
     this.updateRangeFills();
   }
@@ -1986,7 +2024,9 @@ class PaintersReferenceApp {
     this.dom.drawingStageValue.textContent = this.getDrawingViewLabel();
     this.dom.paintingStageValue.textContent =
       labels[this.state.stageSelections.painting] || "Grayscale";
-    this.dom.generalStageValue.textContent = "Exports";
+    this.dom.generalStageValue.textContent = this.state.studySheetPreview.isOpen
+      ? `${this.getStudySheetLabel()} Preview`
+      : "Previews";
 
     const isNotanActive =
       this.state.activeStage === "painting" && this.state.viewMode === "notan";
@@ -2004,6 +2044,8 @@ class PaintersReferenceApp {
       this.state.activeStage === "painting" &&
       this.state.viewMode === "temperatureStudy";
     this.dom.temperatureControlsSection.classList.toggle("is-hidden", !isTemperatureActive);
+
+    this.updateStudySheetPreviewControls();
   }
 
   updateOutlineControls() {
@@ -2072,6 +2114,53 @@ class PaintersReferenceApp {
     this.updateRangeFills();
   }
 
+  getStudySheetLabel(sheetKey = this.state.studySheetPreview.activeSheet) {
+    const labels = {
+      sheet1: "Sheet 1",
+      sheet2: "Sheet 2",
+      sheet3: "Sheet 3"
+    };
+
+    return labels[sheetKey] || "Sheet 1";
+  }
+
+  updateStudySheetPreviewControls() {
+    const hasLoadedImage = Boolean(this.state.processed.originalCanvas);
+    const isPreviewOpen = this.state.studySheetPreview.isOpen && hasLoadedImage;
+    const activeLabel = this.getStudySheetLabel();
+
+    if (this.dom.sheetPreviewPanel) {
+      this.dom.sheetPreviewPanel.classList.toggle("is-hidden", !isPreviewOpen);
+    }
+
+    if (this.dom.sheetPreviewLabel) {
+      this.dom.sheetPreviewLabel.textContent = activeLabel;
+    }
+
+    if (this.dom.openSheetPreviewButton) {
+      this.dom.openSheetPreviewButton.disabled = !hasLoadedImage;
+    }
+
+    if (this.dom.generalActionPanel) {
+      this.dom.generalActionPanel.classList.toggle("is-hidden", isPreviewOpen);
+    }
+
+    if (this.dom.generalPreviewHelpText) {
+      this.dom.generalPreviewHelpText.classList.toggle("is-hidden", isPreviewOpen);
+    }
+
+    if (this.dom.exportPreviewSheetButton) {
+      this.dom.exportPreviewSheetButton.disabled = !hasLoadedImage;
+    }
+
+    this.dom.sheetPreviewButtons.forEach((button) => {
+      const isActive = button.dataset.sheetPreview === this.state.studySheetPreview.activeSheet;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+      button.disabled = !hasLoadedImage;
+    });
+  }
+
   updateReferenceSection() {
     const hasLoadedImage = Boolean(this.state.loadedFileName);
     this.dom.referenceUploadBlock.classList.toggle("is-hidden", hasLoadedImage);
@@ -2083,6 +2172,7 @@ class PaintersReferenceApp {
         ? `Loaded: ${this.state.loadedFileName}`
         : "No image loaded";
     }
+    this.updateStudySheetPreviewControls();
   }
 
   refreshNotanCanvas() {
@@ -2648,6 +2738,11 @@ class PaintersReferenceApp {
 
   // Render router. Keep multi-panel views explicit until screenshots catch layout drift.
   renderScene() {
+    if (this.state.activeStage === "general" && this.state.studySheetPreview.isOpen) {
+      this.renderStudySheetPreviewScene();
+      return;
+    }
+
     if (this.state.viewMode === "focalStudy") {
       this.renderFocalStudyScene();
       return;
@@ -2695,6 +2790,163 @@ class PaintersReferenceApp {
     this.dom.statusText.textContent = message;
   }
 
+  getStudySheetDefinition(sheetKey) {
+    const sheetDefinitions = {
+      sheet1: {
+        label: "Sheet 1",
+        filename: "painters-ref-sheet-1.jpg",
+        title: "Painter's Reference Lab — Sheet 1",
+        panels: [
+          {
+            label: "Original",
+            canvas: this.state.processed.originalCanvas,
+            showGrid: false
+          },
+          {
+            label: "Grayscale",
+            canvas: this.state.processed.grayscaleCanvas,
+            showGrid: false
+          },
+          {
+            label: "3-Value Notan",
+            canvas: this.state.processed.notanCanvas,
+            showGrid: false
+          },
+          {
+            label: `Outline (${getOutlineDisplayLabel(this.state.outline)})`,
+            canvas: this.getActiveOutlineCanvas(),
+            showGrid: true,
+            gridOptions: this.state.grid
+          }
+        ]
+      },
+      sheet2: {
+        label: "Sheet 2",
+        filename: "painters-ref-sheet-2.jpg",
+        title: "Painter's Reference Lab — Sheet 2",
+        panels: [
+          {
+            label: "Original",
+            canvas: this.state.processed.originalCanvas,
+            showGrid: false
+          },
+          {
+            label: "Light Mask",
+            canvas: this.state.processed.lightMaskCanvas,
+            showGrid: false
+          },
+          {
+            label: "Midtone Mask",
+            canvas: this.state.processed.midtoneMaskCanvas,
+            showGrid: false
+          },
+          {
+            label: "Shadow Mask",
+            canvas: this.state.processed.shadowMaskCanvas,
+            showGrid: false
+          }
+        ]
+      },
+      sheet3: {
+        label: "Sheet 3",
+        filename: "painters-ref-sheet-3.jpg",
+        title: "Painter's Reference Lab — Sheet 3",
+        panels: [
+          {
+            label: "Original",
+            canvas: this.state.processed.originalCanvas,
+            showGrid: false
+          },
+          {
+            label: "Warm Mask",
+            canvas: this.state.processed.warmMaskCanvas,
+            showGrid: false
+          },
+          {
+            label: "Cool Mask",
+            canvas: this.state.processed.coolMaskCanvas,
+            showGrid: false
+          },
+          {
+            label: "Neutral Mask",
+            canvas: this.state.processed.neutralMaskCanvas,
+            showGrid: false
+          }
+        ]
+      }
+    };
+
+    return sheetDefinitions[sheetKey] || sheetDefinitions.sheet1;
+  }
+
+  buildStudySheetCanvas(sheetKey, options = {}) {
+    const {
+      shouldDownload = false
+    } = options;
+    const definition = this.getStudySheetDefinition(sheetKey);
+
+    return createCompositeSheet(
+      definition.panels,
+      definition.filename,
+      {
+        title: definition.title,
+        shouldDownload
+      }
+    );
+  }
+
+  openStudySheetPreview(sheetKey = this.state.studySheetPreview.activeSheet) {
+    if (!this.state.processed.originalCanvas) {
+      alert("Please load an image before previewing sheets.");
+      return;
+    }
+
+    this.state.activeStage = "general";
+    this.state.studySheetPreview.isOpen = true;
+    this.state.studySheetPreview.activeSheet = sheetKey;
+    this.updateStagePanels();
+    this.renderScene();
+  }
+
+  closeStudySheetPreview() {
+    if (!this.state.studySheetPreview.isOpen) {
+      return;
+    }
+
+    this.state.studySheetPreview.isOpen = false;
+    this.updateStagePanels();
+    this.updateStatus("Study sheet preview closed");
+    this.renderScene();
+  }
+
+  exportActiveStudySheet(sheetKey = this.state.studySheetPreview.activeSheet) {
+    if (!this.state.processed.originalCanvas) {
+      alert("Please load an image before exporting.");
+      return;
+    }
+
+    const definition = this.getStudySheetDefinition(sheetKey);
+    this.buildStudySheetCanvas(sheetKey, { shouldDownload: true });
+    this.updateStatus(`${definition.label} exported`);
+  }
+
+  renderStudySheetPreviewScene() {
+    const previewCanvas = this.buildStudySheetCanvas(this.state.studySheetPreview.activeSheet, {
+      shouldDownload: false
+    });
+    const activeLabel = this.getStudySheetLabel();
+
+    this.focalStudyLayout = null;
+    setCanvasSize(this.dom.mainCanvas, previewCanvas.width, previewCanvas.height);
+    clearCanvas(this.ctx, this.dom.mainCanvas);
+    this.ctx.drawImage(previewCanvas, 0, 0);
+
+    this.updateStatus(`${activeLabel} preview ready`);
+    this.updateInfo();
+    this.dom.viewModeText.textContent = `${activeLabel} Preview`;
+    this.updateOutlineDetailLabel();
+  }
+
   // Export actions depend on the current render canvas and processed cache.
   exportCurrentView() {
     if (!this.state.processed.originalCanvas) {
@@ -2715,112 +2967,15 @@ class PaintersReferenceApp {
   }
 
   exportSheet1() {
-    if (!this.state.processed.originalCanvas) {
-      alert("Please load an image before exporting.");
-      return;
-    }
-
-    createCompositeSheet(
-      [
-        {
-          label: "Original",
-          canvas: this.state.processed.originalCanvas,
-          showGrid: false
-        },
-        {
-          label: "Grayscale",
-          canvas: this.state.processed.grayscaleCanvas,
-          showGrid: false
-        },
-        {
-          label: "3-Value Notan",
-          canvas: this.state.processed.notanCanvas,
-          showGrid: false
-        },
-        {
-          label: `Outline (${getOutlineDisplayLabel(this.state.outline)})`,
-          canvas: this.getActiveOutlineCanvas(),
-          showGrid: true,
-          gridOptions: this.state.grid
-        }
-      ],
-      "painters-ref-sheet-1.jpg",
-      {
-        title: "Painter's Reference Lab — Sheet 1"
-      }
-    );
+    this.exportActiveStudySheet("sheet1");
   }
 
   exportSheet2() {
-    if (!this.state.processed.originalCanvas) {
-      alert("Please load an image before exporting.");
-      return;
-    }
-
-    createCompositeSheet(
-      [
-        {
-          label: "Original",
-          canvas: this.state.processed.originalCanvas,
-          showGrid: false
-        },
-        {
-          label: "Light Mask",
-          canvas: this.state.processed.lightMaskCanvas,
-          showGrid: false
-        },
-        {
-          label: "Midtone Mask",
-          canvas: this.state.processed.midtoneMaskCanvas,
-          showGrid: false
-        },
-        {
-          label: "Shadow Mask",
-          canvas: this.state.processed.shadowMaskCanvas,
-          showGrid: false
-        }
-      ],
-      "painters-ref-sheet-2.jpg",
-      {
-        title: "Painter's Reference Lab — Sheet 2"
-      }
-    );
+    this.exportActiveStudySheet("sheet2");
   }
 
   exportSheet3() {
-    if (!this.state.processed.originalCanvas) {
-      alert("Please load an image before exporting.");
-      return;
-    }
-
-    createCompositeSheet(
-      [
-        {
-          label: "Original",
-          canvas: this.state.processed.originalCanvas,
-          showGrid: false
-        },
-        {
-          label: "Warm Mask",
-          canvas: this.state.processed.warmMaskCanvas,
-          showGrid: false
-        },
-        {
-          label: "Cool Mask",
-          canvas: this.state.processed.coolMaskCanvas,
-          showGrid: false
-        },
-        {
-          label: "Neutral Mask",
-          canvas: this.state.processed.neutralMaskCanvas,
-          showGrid: false
-        }
-      ],
-      "painters-ref-sheet-3.jpg",
-      {
-        title: "Painter's Reference Lab — Sheet 3"
-      }
-    );
+    this.exportActiveStudySheet("sheet3");
   }
 }
 
