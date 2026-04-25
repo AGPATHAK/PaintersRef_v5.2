@@ -1,141 +1,87 @@
 # Milestones
 
-Suggested GitHub milestones for practical solo development.
+Practical milestone record for the current Painter's Reference Lab state.
 
 ## M1 Current App Stabilization
 
-### Scope
+**Status:** Completed
 
-Protect the current deterministic app and reduce regression risk.
+### Completed in M1
 
-### Included Roadmap Items
+- Stable deterministic app retained
+- Manual smoke-test discipline documented
+- Reference screenshot baseline process documented
+- M1 structure/documentation cleanup completed
+- Failed refactor attempts documented and rolled back
+- Stable single-script architecture preserved intentionally
 
-- Phase 1 cleanup.
-- Bug fixes from real painting use.
-- Manual regression checklist.
-- Export sheet verification.
-- Service worker/deployment checklist.
+### Outcome
 
-### Risks
-
-- Refactoring may accidentally change visual output.
-- Export behavior may regress without image-based checks.
-- App state changes may affect composition crop selection.
-
-### Completion Definition
-
-- Existing Core Lab features work as before.
-- Major views and export sheets are checked against a test checklist.
-- Known P0/P1 bugs are closed or explicitly deferred.
-- No AI code has been added yet.
+M1 ended with a usable, stable deterministic foundation and a clear decision to defer deeper refactoring until workflow value is better validated through real use.
 
 ## M2 Workflow UX Upgrade
 
-### Scope
+**Status:** In progress
 
-Improve daily studio usability without changing product scope.
+### Completed so far in M2
 
-### Included Roadmap Items
+- Tinted tonal-mask workflow stabilized
+- Outline detail presets clarified into bounded Low / Medium / High detail
+- Export Current View exposed as a visible top-level action
+- 3-sheet preview/export workflow implemented
+- Previews stage simplified so it opens directly into the prepared sheet workflow
 
-- Compare mode design.
-- Presets for common settings.
-- Reset-current-stage action.
-- Export preview exploration.
-- Sidebar polish from actual use.
+### Current M2 Product Additions
 
-### Risks
+- **Sheet 1 - Value & Drawing**
+  - Original
+  - Grayscale
+  - 3-Value Notan
+  - Outline with grid
+- **Sheet 2 - Tonal Masks**
+  - Original
+  - Light Mask
+  - Midtone Mask
+  - Shadow Mask
+- **Sheet 3 - Temperature Map**
+  - Original
+  - Warm Mask
+  - Cool Mask
+  - Neutral Mask
 
-- UI may become denser.
-- Compare mode can create state complexity.
-- Presets may duplicate existing controls if not designed carefully.
+### Remaining M2 Focus
 
-### Completion Definition
-
-- Workflow improvements reduce clicks or confusion.
-- Deterministic outputs remain visible first.
-- UI remains compact and painter-facing.
+- Real-world usage testing
+- Calibration of outline presets
+- Calibration of warm/cool/neutral masks
+- UI polish and visual cleanup where needed
 
 ## M3 Compare & Session Features
 
-### Scope
+**Status:** Not started
 
-Add the foundation needed for variant comparison before AI Studio.
+### Deferred
 
-### Included Roadmap Items
-
-- Compare gallery.
-- Selected view/variant state.
-- Session-local settings persistence.
-- Export selected comparison view if useful.
-
-### Risks
-
-- Variant/session state may overlap with composition selection state.
-- Storing image data locally may be too heavy.
-- Export expectations may expand beyond simple sheets.
-
-### Completion Definition
-
-- User can compare original/current/selected views without losing workflow stage.
-- Session behavior is predictable and documented.
-- No cloud sync is introduced.
+- Compare mode beyond the current sheet-preview workflow
+- Session persistence or saved presets
+- More advanced export composition choices
 
 ## M4 AI Studio Beta
 
-### Scope
+**Status:** Deferred
 
-Add the first bounded AI features behind an optional AI Studio panel.
+### Deferred
 
-### Included Roadmap Items
-
-- AI Studio placeholder panel.
-- `aiService.js` or equivalent API wrapper.
-- AI Simplify.
-- AI Composition Variants, maximum 3.
-- AI Painting Plan text suggestions.
-- Graceful API error handling.
-- Compare generated variants.
-
-### Risks
-
-- API latency may feel confusing.
-- Prompt drift may produce non-useful variants.
-- Costs can grow if generation is too easy to repeat.
-- Privacy expectations must be clear.
-
-### Completion Definition
-
-- AI Studio is opt-in and clearly separated.
-- Core Lab works without API configuration.
-- AI failures are recoverable.
-- Results can be compared, selected, or discarded.
-- MVP scope exclusions remain excluded.
+- AI-assisted simplify or variant workflows
+- AI service boundary work
+- Any cloud/API-dependent layer
 
 ## M5 Public Release Candidate
 
-### Scope
+**Status:** Deferred
 
-Prepare a stable public-facing version.
+### Deferred
 
-### Included Roadmap Items
-
-- Onboarding and documentation.
-- Performance polish.
-- Accessibility pass.
-- Landing page or project page.
-- Known limitations.
-- Release/deploy checklist.
-
-### Risks
-
-- Documentation may drift from the app.
-- Large-image performance may vary by device.
-- AI expectations may need clearer public wording.
-
-### Completion Definition
-
-- App is usable by a new painter without guided explanation.
-- Docs match live behavior.
-- PWA install/offline behavior is checked.
-- Known limitations are documented.
-
+- Landing/onboarding polish
+- Accessibility pass
+- Release packaging and wider public readiness
