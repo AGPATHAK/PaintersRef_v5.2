@@ -1,146 +1,122 @@
 # Current State Audit
 
-## Current Features Implemented
+## Version Checkpoint
 
-Inventory based on the current repository:
+- Stable working prototype: **V5.2**
+- Product type: browser-based deterministic painting-reference tool
+- Current posture: stable working app first, refactor later
 
-- Local JPG/PNG image loading through a file input.
-- Canvas-based image fitting with preserved aspect ratio.
-- Workflow sidebar with staged sections:
-  - Baseline
-  - Composition
-  - Observation
-  - Drawing
-  - Painting
-  - Exports
-- Baseline grid overlay with adjustable rows and columns.
-- Composition focal study:
-  - click-to-place focal point
-  - four rule-of-thirds crop studies
-  - crop-size slider
-  - click-to-select composition crop as the working reference
-  - clear selection back to original
-- Observation squint view based on grayscale value-mass simplification.
-- Drawing views:
-  - outline sketch / edge detection
-  - mirror check based on the generated outline
-  - outline presets and sliders
-- Painting views:
-  - grayscale
-  - 3-value notan / posterization
-  - light mask
-  - midtone mask
-  - shadow mask
-  - warm/cool/neutral temperature study
-  - palette notes with sampled colors and watercolor-friendly mix suggestions
-- Exports:
-  - current canvas view as JPEG
-  - Sheet 1: original, grayscale, notan, outline
-  - Sheet 2: original, light mask, midtone mask, shadow mask
-  - Sheet 3: original, warm mask, cool mask, neutral mask
-- Light/dark theme toggle stored in `localStorage`.
-- PWA support through manifest and service worker caching.
-- GitHub Pages compatible static app structure.
+## Current Working Product
 
-## Architecture Snapshot
+Painter's Reference Lab V5.2 is a working local-first reference-preparation tool for painters. It currently supports the full workflow from loading an image through simplified studies and exportable reference sheets.
 
-### File Structure
+The app is currently being treated as a stable prototype rather than an active refactor target. Workflow clarity and real-use testing now matter more than architectural cleanup.
 
-```text
-/
-  index.html
-  styles.css
-  app.js
-  manifest.webmanifest
-  service-worker.js
-  README.md
-  icons/icon.svg
-  docs/
-```
+## Major Implemented Features
 
-### Major JavaScript Responsibilities
+- JPG/PNG image loading
+- Aspect-ratio-preserving image fit to canvas
+- Grid overlay with adjustable rows and columns
+- Grayscale study
+- 3-value Notan
+- Tonal masks:
+  - Light Mask
+  - Midtone Mask
+  - Shadow Mask
+- Rough outline sketch with bounded presets:
+  - Low Detail
+  - Medium Detail
+  - High Detail
+- Current-view export
+- Composite preview/export workflow with 3 prepared sheets
+- Light/dark theme toggle
+- PWA-compatible static app structure
 
-`app.js` currently owns almost all runtime behavior:
+## 3-Sheet Workflow
 
-- image file validation and loading
-- canvas sizing and drawing utilities
-- grayscale conversion
-- notan / posterization
-- tonal mask generation
-- hue/temperature mask generation
-- palette extraction and watercolor mix-note analysis
-- outline sketch generation
-- squint generation
-- mirror generation
-- grid overlay drawing
-- composition crop generation and selection
-- composite sheet creation
-- app state
-- DOM references
-- event binding
-- stage/view selection
-- render routing
-- export handling
-- service worker registration
+The app now includes a preview workflow with three prepared sheets under **Previews**.
 
-The main app class is `PaintersReferenceApp`. Most processing helpers are plain functions in the same file.
+### Sheet 1 - Value & Drawing
 
-### CSS/UI Structure
+- Original
+- Grayscale
+- 3-Value Notan
+- Outline with grid
 
-`styles.css` contains:
+Notes:
 
-- theme tokens for light and dark mode
-- shell layout and responsive desktop-oriented grid
-- sidebar cards and workflow stage accordions
-- segmented view-mode buttons
-- form controls and custom sliders
-- canvas matte frame
-- export/action button styling
-- palette, info, and placeholder styling
-- responsive adjustments
+- Grid is included only on the outline panel in Sheet 1 export.
+- This is the main value/drawing study sheet.
 
-The UI is staged and painter-facing, but CSS is still in one file.
+### Sheet 2 - Tonal Masks
 
-### PWA Assets
+- Original
+- Light Mask
+- Midtone Mask
+- Shadow Mask
 
-- `manifest.webmanifest` defines install metadata and the SVG icon.
-- `service-worker.js` caches the app shell and serves cached assets offline.
-- `icons/icon.svg` is the app icon.
-- Cache version is manually bumped when deploy-relevant assets change.
+Notes:
 
-## Strengths
+- This sheet is intended for value grouping and mass interpretation.
 
-- Strong painter-first workflow: composition, observation, drawing, painting, exports.
-- Fast local deterministic processing with no server dependency.
-- Useful and differentiated feature set for real painting preparation.
-- Good restraint: the app avoids becoming a general photo editor.
-- Composition crop workflow is now meaningful because selected crops feed later stages.
-- Squint, outline, notan, masks, and temperature studies support different painting decisions rather than duplicating one another.
-- Export sheets make the app useful outside the browser.
-- Dark mode and compact sidebar improve real studio use.
-- PWA support makes the tool installable and offline-friendly.
-- Existing documentation clearly protects the product identity.
+### Sheet 3 - Temperature Map
 
-## Technical Risks
+- Original
+- Warm Mask
+- Cool Mask
+- Neutral Mask
 
-- `app.js` is monolithic at roughly 2,800 lines, combining processing, state, DOM events, rendering, and exports.
-- Render logic is coupled to app state and DOM updates, making regression risk higher as features grow.
-- Processed canvases are rebuilt in several places; cache invalidation rules may become harder to reason about.
-- Composition selection, focal-study layout, view routing, and working-reference state are tightly coupled.
-- Export sheet logic depends directly on current in-memory canvas state.
-- No automated regression tests exist for image-processing outputs or export sheets.
-- No module boundaries exist yet for deterministic processors.
-- AI integration would add latency, async errors, privacy messaging, and variant history to an already dense app class.
-- Service worker cache versioning is manual and can be forgotten during documentation or asset changes.
-- Palette-note logic is heuristic and may need careful labeling to avoid over-promising.
+Notes:
 
-## Recommended Next Moves
+- This sheet is intended as a practical warm/cool balance aid, not absolute color truth.
 
-Top 5 only:
+## Current Export Behavior
 
-1. Split deterministic image-processing helpers from `app.js` into small modules without changing behavior.
-2. Add a central state/update boundary so UI events, derived canvases, and rendering have clearer responsibilities.
-3. Create a lightweight regression checklist or test harness for core render modes and export sheets.
-4. Add compare-gallery groundwork for original/current/variant views before adding AI.
-5. Add an `AI Studio` placeholder only after the Core Lab structure is easier to maintain.
+- **Export Current View** is a visible top-level action in the main control panel.
+- The **Previews** stage opens directly into the sheet-preview workflow.
+- Users can preview Sheet 1 / Sheet 2 / Sheet 3 before export.
+- Sheet export is routed through the preview workflow.
+- Current view export remains separate from sheet export.
 
+## Additional Working Workflow Notes
+
+- The app still includes composition/focal-point workflow and crop studies that can become the working reference.
+- Rough outline output can be mirrored for drawing checks.
+- The current app state is good enough for real painter usage and observational testing.
+
+## Current Stable Architecture
+
+- Static app structure:
+  - `index.html`
+  - `styles.css`
+  - `app.js`
+  - `manifest.webmanifest`
+  - `service-worker.js`
+- Single-file runtime architecture centered in `app.js`
+- Deterministic client-side image processing
+- Manual browser smoke testing remains the main regression check
+
+## Known Limitations / Observations
+
+- Outline can still be too busy for some images, especially architecture and foliage.
+- Warm/cool/neutral masks may need calibration based on real-world usage.
+- UI is functional and usable, but still open to a later aesthetics/polish pass.
+- `app.js` remains large and monolithic.
+- Code refactor is intentionally deferred until workflow stabilizes after more real use.
+
+## Intentionally Deferred
+
+- Broad refactor of `app.js`
+- Module extraction
+- Algorithm changes for current stable studies
+- Larger UX redesign
+- AI integration
+
+## Practical Resume Guidance
+
+If a future session needs to resume quickly, the most important facts are:
+
+- V5.2 is the current stable prototype.
+- Export Current View is now always visible.
+- Previews contains the 3-sheet workflow.
+- The app should be treated as working and worth testing in real painting use before structural cleanup resumes.
