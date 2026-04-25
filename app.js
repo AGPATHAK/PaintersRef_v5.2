@@ -1468,13 +1468,11 @@ class PaintersReferenceApp {
       columnsInput: document.getElementById("columnsInput"),
 
       exportCurrentViewButton: document.getElementById("exportCurrentViewButton"),
-      openSheetPreviewButton: document.getElementById("openSheetPreviewButton"),
       closeSheetPreviewButton: document.getElementById("closeSheetPreviewButton"),
       exportPreviewSheetButton: document.getElementById("exportPreviewSheetButton"),
       sheetPreviewPanel: document.getElementById("sheetPreviewPanel"),
       sheetPreviewLabel: document.getElementById("sheetPreviewLabel"),
       sheetPreviewButtons: Array.from(document.querySelectorAll("[data-sheet-preview]")),
-      generalActionPanel: document.getElementById("generalActionPanel"),
       generalPreviewHelpText: document.getElementById("generalPreviewHelpText")
     };
 
@@ -1819,9 +1817,13 @@ class PaintersReferenceApp {
         }
 
         if (stage === "general") {
-          this.state.activeStage = "general";
-          this.updateStagePanels();
-          this.renderScene();
+          if (this.state.processed.originalCanvas) {
+            this.openStudySheetPreview();
+          } else {
+            this.state.activeStage = "general";
+            this.updateStagePanels();
+            this.renderScene();
+          }
           return;
         }
 
@@ -1833,12 +1835,6 @@ class PaintersReferenceApp {
     this.dom.exportCurrentViewButton.addEventListener("click", () => {
       this.exportCurrentView();
     });
-
-    if (this.dom.openSheetPreviewButton) {
-      this.dom.openSheetPreviewButton.addEventListener("click", () => {
-        this.openStudySheetPreview();
-      });
-    }
 
     if (this.dom.closeSheetPreviewButton) {
       this.dom.closeSheetPreviewButton.addEventListener("click", () => {
@@ -2135,14 +2131,6 @@ class PaintersReferenceApp {
 
     if (this.dom.sheetPreviewLabel) {
       this.dom.sheetPreviewLabel.textContent = activeLabel;
-    }
-
-    if (this.dom.openSheetPreviewButton) {
-      this.dom.openSheetPreviewButton.disabled = !hasLoadedImage;
-    }
-
-    if (this.dom.generalActionPanel) {
-      this.dom.generalActionPanel.classList.toggle("is-hidden", isPreviewOpen);
     }
 
     if (this.dom.generalPreviewHelpText) {
